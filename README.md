@@ -4,3 +4,4 @@ This repository seeks to be a cryptography library for learning purposes. First 
 
 ## List of implemented cryptography algorithms
 - [ChaCha20](src/chacha/)
+- [AES](src/aes/)
