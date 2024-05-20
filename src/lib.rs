@@ -1,3 +1,1 @@
-pub mod chacha;
-pub mod aes;
-
+pub mod crypto;

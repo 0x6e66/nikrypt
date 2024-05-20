@@ -175,7 +175,7 @@ pub fn inv_cipher(in_array: [u8; 16], nr: usize, w: Vec<Word>) -> [u8; 16] {
 #[cfg(test)]
 #[allow(non_snake_case)]
 mod tests {
-    use crate::aes::key::Key;
+    use super::super::key::Key;
 
     #[test]
     fn cipher() {

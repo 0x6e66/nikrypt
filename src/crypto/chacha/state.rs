@@ -1,4 +1,4 @@
-use crate::chacha::utils;
+use super::utils;
 
 #[derive(PartialEq, Debug, Clone, Copy)]
 struct State {

@@ -4,10 +4,8 @@ mod state;
 mod utils;
 mod word;
 
-use crate::{
-    aes::cipher::{cipher, inv_cipher},
-    aes::key::Key,
-};
+use cipher::{cipher, inv_cipher};
+use key::Key;
 
 pub fn encrypt(key: Key, plaintext: [u8; 16]) -> Result<[u8; 16], String> {
     let nr = match key.get_size_in_bytes() {
