@@ -201,6 +201,7 @@ impl PartialOrd for Bignum {
 
 impl std::ops::Shr<usize> for Bignum {
     type Output = Self;
+
     fn shr(mut self, rhs: usize) -> Self::Output {
         let (new_len, _) = self.0.len().overflowing_sub(rhs / 8);
         let shift = (rhs % 8) as u8;
@@ -211,6 +212,32 @@ impl std::ops::Shr<usize> for Bignum {
         for b in self.0.iter_mut().rev() {
             let tmp_carry = (*b << (8 - shift)) as u8;
             *b >>= shift;
+            *b |= carry;
+            carry = tmp_carry;
+        }
+
+        self.strip();
+
+        self
+    }
+}
+
+impl std::ops::Shl<usize> for Bignum {
+    type Output = Self;
+
+    fn shl(mut self, rhs: usize) -> Self::Output {
+        let shift = (rhs % 8) as u8;
+
+        self.0.push(0);
+
+        for _ in 0..(rhs / 8) {
+            self.0.insert(0, 0);
+        }
+
+        let mut carry = 0;
+        for b in self.0.iter_mut() {
+            let tmp_carry = (*b >> (8 - shift)) as u8;
+            *b <<= shift;
             *b |= carry;
             carry = tmp_carry;
         }
@@ -346,6 +373,19 @@ mod tests {
             let (tmp, _) = a.overflowing_shr(b as u32);
             let res = Bignum::from(tmp);
             let res_big = big_a >> b;
+
+            assert_eq!(res, res_big);
+        }
+    }
+
+    #[test]
+    fn shift_left() {
+        for (a, b) in NUM_PAIRS2 {
+            let big_a = Bignum::from(a);
+
+            let tmp = a << b as u32;
+            let res = Bignum::from(tmp);
+            let res_big = big_a << b;
 
             assert_eq!(res, res_big);
         }
