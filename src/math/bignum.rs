@@ -71,9 +71,7 @@ impl Bignum {
         }
 
         let byte = self.0[pos / 8];
-        let bit = (byte >> (pos % 8)) & 1 == 1;
-
-        bit
+        (byte >> (pos % 8)) & 1 == 1
     }
 
     pub fn set_bit(&mut self, pos: usize) {
@@ -358,6 +356,7 @@ impl std::ops::Sub for Bignum {
     }
 }
 
+// Long Multiplication (https://en.wikipedia.org/wiki/Multiplication_algorithm#Long_multiplication)
 impl std::ops::Mul for Bignum {
     type Output = Self;
 
