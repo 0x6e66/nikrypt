@@ -152,6 +152,31 @@ impl Bignum {
 
         return x * y;
     }
+
+    pub fn mul_ref(&self, other: &Self) -> Self {
+        let p = self.0.len();
+        let q = other.0.len();
+        let base = 256;
+
+        let mut product = vec![0; p + q];
+
+        for b_i in 0..q {
+            let mut carry = 0;
+            for a_i in 0..p {
+                let mut tmp = product[a_i + b_i] as u32;
+                tmp += carry + self.0[a_i] as u32 * other.0[b_i] as u32;
+                carry = tmp / base;
+                tmp %= base;
+                product[a_i + b_i] = tmp as u8;
+            }
+            product[b_i + p] = carry as u8;
+        }
+
+        let mut tmp = Self(product);
+        tmp.strip();
+
+        tmp
+    }
 }
 
 impl Default for Bignum {
@@ -391,28 +416,7 @@ impl std::ops::Mul for Bignum {
     type Output = Self;
 
     fn mul(self, rhs: Self) -> Self::Output {
-        let (p, a) = (self.0.len(), self.0);
-        let (q, b) = (rhs.0.len(), rhs.0);
-        let base = 256;
-
-        let mut product = vec![0; p + q];
-
-        for b_i in 0..q {
-            let mut carry = 0;
-            for a_i in 0..p {
-                let mut tmp = product[a_i + b_i] as u32;
-                tmp += carry + a[a_i] as u32 * b[b_i] as u32;
-                carry = tmp / base;
-                tmp %= base;
-                product[a_i + b_i] = tmp as u8;
-            }
-            product[b_i + p] = carry as u8;
-        }
-
-        let mut tmp = Self(product);
-        tmp.strip();
-
-        tmp
+        Bignum::mul_ref(&self, &rhs)
     }
 }
 
