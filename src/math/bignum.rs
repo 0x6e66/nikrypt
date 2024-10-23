@@ -230,35 +230,71 @@ impl std::ops::Add for Bignum {
     }
 }
 
+impl std::ops::Mul for Bignum {
+    type Output = Self;
+
+    fn mul(self, rhs: Self) -> Self::Output {
+        let (p, a) = (self.0.len(), self.0);
+        let (q, b) = (rhs.0.len(), rhs.0);
+        let base = 256;
+
+        let mut product = Vec::new();
+        product.resize(p + q, 0u8);
+
+        for b_i in 0..q {
+            let mut carry = 0;
+            for a_i in 0..p {
+                let mut tmp = product[a_i + b_i] as u32;
+                tmp += carry + a[a_i] as u32 * b[b_i] as u32;
+                carry = tmp / base;
+                tmp %= base;
+                product[a_i + b_i] = tmp as u8;
+            }
+            product[b_i + p] = carry as u8;
+        }
+
+        let mut tmp = Self(product);
+        tmp.strip();
+
+        tmp
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
 
+    const NUM_PAIRS: [(u128, u128); 5] = [
+        (0xaabb0000, 0x0000ccdd),
+        (0xffff, 0xffff),
+        (0x0, 0x0),
+        (0x0, 0x1),
+        (0xabcedefabcdef, 0xabcedefabcdef),
+    ];
+
     #[test]
-    fn add_1() {
-        let a = 0xaabb0000;
-        let b = 0x0000ccdd;
+    fn addition() {
+        for (a, b) in NUM_PAIRS {
+            let big_a = Bignum::from(a);
+            let big_b = Bignum::from(b);
 
-        let big_a = Bignum::from(a);
-        let big_b = Bignum::from(b);
+            let res = Bignum::from(a + b);
+            let res_big = big_a + big_b;
 
-        let res = Bignum::from(a + b);
-        let res_big = big_a + big_b;
-
-        assert_eq!(res, res_big);
+            assert_eq!(res, res_big);
+        }
     }
 
     #[test]
-    fn add_2() {
-        let a = 0xffff;
-        let b = 0xffff;
+    fn multiplication() {
+        for (a, b) in NUM_PAIRS {
+            let big_a = Bignum::from(a);
+            let big_b = Bignum::from(b);
 
-        let big_a = Bignum::from(a);
-        let big_b = Bignum::from(b);
+            let res = Bignum::from(a * b);
+            let res_big = big_a * big_b;
 
-        let res = Bignum::from(a + b);
-        let res_big = big_a + big_b;
-
-        assert_eq!(res, res_big);
+            assert_eq!(res, res_big);
+        }
     }
 }
