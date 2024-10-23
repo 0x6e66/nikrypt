@@ -64,6 +64,41 @@ impl Bignum {
             self.0.push(0u8);
         }
     }
+
+    pub fn get_bit(&self, pos: usize) -> bool {
+        if pos >= self.0.len() * 8 {
+            return false;
+        }
+
+        let byte = self.0[pos / 8];
+        let bit = (byte >> (pos % 8)) & 1 == 1;
+
+        bit
+    }
+
+    pub fn set_bit(&mut self, pos: usize) {
+        if pos >= self.0.len() * 8 {
+            self.0.resize(pos / 8 + 1, 0);
+        }
+
+        self.0[pos / 8] |= 1 << (pos % 8);
+    }
+
+    pub fn unset_bit(&mut self, pos: usize) {
+        if pos >= self.0.len() * 8 {
+            return;
+        }
+
+        self.0[pos / 8] &= !(1 << (pos % 8));
+    }
+
+    pub fn toggle_bit(&mut self, pos: usize) {
+        if pos >= self.0.len() * 8 {
+            self.0.resize(pos / 8 + 1, 0);
+        }
+
+        self.0[pos / 8] ^= 1 << (pos % 8);
+    }
 }
 
 impl Default for Bignum {
@@ -444,6 +479,57 @@ mod tests {
             let res_big = big_a << b;
 
             assert_eq!(res, res_big);
+        }
+    }
+
+    #[test]
+    fn get_bit() {
+        for (a, b) in NUM_PAIRS2 {
+            let big_a = Bignum::from(a);
+
+            let res = (a >> b) & 1 == 1;
+            let res_big = big_a.get_bit(b);
+
+            assert_eq!(res, res_big);
+        }
+    }
+
+    #[test]
+    fn set_bit() {
+        for (mut a, b) in NUM_PAIRS2 {
+            let mut big_a = Bignum::from(a);
+            big_a.set_bit(b);
+
+            a |= 1 << b;
+            let a = Bignum::from(a);
+
+            assert_eq!(a, big_a);
+        }
+    }
+
+    #[test]
+    fn unset_bit() {
+        for (mut a, b) in NUM_PAIRS2 {
+            let mut big_a = Bignum::from(a);
+            big_a.unset_bit(b);
+
+            a &= !(1 << b);
+            let a = Bignum::from(a);
+
+            assert_eq!(a, big_a);
+        }
+    }
+
+    #[test]
+    fn toggle_bit() {
+        for (mut a, b) in NUM_PAIRS2 {
+            let mut big_a = Bignum::from(a);
+            big_a.toggle_bit(b);
+
+            a ^= 1 << b;
+            let a = Bignum::from(a);
+
+            assert_eq!(a, big_a);
         }
     }
 }
