@@ -44,7 +44,7 @@ impl Bignum {
         format!("0x{}", res)
     }
 
-    pub fn num_of_bytes(&self) -> usize {
+    pub fn len(&self) -> usize {
         self.0.len()
     }
 
