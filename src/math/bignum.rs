@@ -1,7 +1,7 @@
 /// Internal storage in little endian
 ///
 /// 0xabcdef00 -> Bignum([0x00, 0xef, 0xcd, 0xab])
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Bignum(Vec<u8>);
 
 impl Bignum {
@@ -98,6 +98,31 @@ impl Bignum {
         }
 
         self.0[pos / 8] ^= 1 << (pos % 8);
+    }
+
+    /// Integer division (unsigned) with remainder (https://en.wikipedia.org/wiki/Division_algorithm#Integer_division_(unsigned)_with_remainder)
+    /// returns (quotient, remainder)
+    pub fn div_with_remainder(self, rhs: Self) -> (Self, Self) {
+        let mut quotient = Bignum::new();
+        let mut remainder = Bignum::new();
+
+        let (n_len, n) = (self.0.len() * 8, self);
+
+        for i in (0..n_len).rev() {
+            remainder = remainder << 1;
+            if n.get_bit(i) {
+                remainder.set_bit(0);
+            } else {
+                remainder.unset_bit(0);
+            }
+
+            if remainder >= rhs {
+                remainder = remainder - rhs.clone();
+                quotient.set_bit(i);
+            }
+        }
+
+        (quotient, remainder)
     }
 }
 
@@ -362,6 +387,15 @@ impl std::ops::Mul for Bignum {
     }
 }
 
+impl std::ops::Div for Bignum {
+    type Output = Self;
+
+    fn div(self, rhs: Self) -> Self::Output {
+        let (q, _) = self.div_with_remainder(rhs);
+        q
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -440,6 +474,21 @@ mod tests {
             let res_big = big_a * big_b;
 
             assert_eq!(res, res_big);
+        }
+    }
+
+    #[test]
+    fn division_with_remainder() {
+        for (a, b) in NUM_PAIRS2 {
+            let big_a = Bignum::from(a);
+            let big_b = Bignum::from(b as u128);
+
+            let (big_q, big_r) = Bignum::div_with_remainder(big_a, big_b);
+            let q = Bignum::from(a / b as u128);
+            let r = Bignum::from(a % b as u128);
+
+            assert_eq!(big_q, q);
+            assert_eq!(big_r, r);
         }
     }
 
