@@ -20,11 +20,11 @@ impl Bignum {
     }
 
     pub fn to_hex_string(&self) -> String {
-        if self.0.len() == 1 {
-            return String::from("0x00");
+        if self.0.len() == 1 && self.0[0] == 0 {
+            return String::from("0x0");
         }
 
-        let mut res = String::from("0x");
+        let mut res = String::new();
         let mut leading_zeros = true;
 
         for b in self.0.iter().rev() {
@@ -37,7 +37,11 @@ impl Bignum {
             res.push_str(&format!("{:02x}", b));
         }
 
-        res
+        if let Some(tmp) = res.strip_prefix("0") {
+            res = tmp.to_string();
+        }
+
+        format!("0x{}", res)
     }
 
     pub fn num_of_bytes(&self) -> usize {
@@ -195,6 +199,28 @@ impl PartialOrd for Bignum {
     }
 }
 
+impl std::ops::Shr<usize> for Bignum {
+    type Output = Self;
+    fn shr(mut self, rhs: usize) -> Self::Output {
+        let (new_len, _) = self.0.len().overflowing_sub(rhs / 8);
+        let shift = (rhs % 8) as u8;
+
+        self.0.resize(new_len, 0);
+
+        let mut carry = 0;
+        for b in self.0.iter_mut().rev() {
+            let tmp_carry = (*b << (8 - shift)) as u8;
+            *b >>= shift;
+            *b |= carry;
+            carry = tmp_carry;
+        }
+
+        self.strip();
+
+        self
+    }
+}
+
 impl std::ops::Add for Bignum {
     type Output = Self;
 
@@ -208,22 +234,14 @@ impl std::ops::Add for Bignum {
 
         let mut carry = 0;
         for i in 0..long.0.len() {
-            let (mut sum, mut tmp_carry) = long.0[i].overflowing_add(carry);
-            carry = 0;
-            if tmp_carry {
-                carry += 1;
-            }
+            let tmp = short.0[i] as u32 + long.0[i] as u32 + carry;
+            carry = tmp >> 8;
 
-            (sum, tmp_carry) = sum.overflowing_add(short.0[i]);
-            if tmp_carry {
-                carry += 1;
-            }
-
-            short.0[i] = sum;
+            short.0[i] = tmp as u8;
         }
 
         if carry != 0 {
-            short.0.push(carry);
+            short.0.push(carry as u8);
         }
 
         short
@@ -264,12 +282,21 @@ impl std::ops::Mul for Bignum {
 mod tests {
     use super::*;
 
-    const NUM_PAIRS: [(u128, u128); 5] = [
+    const NUM_PAIRS: [(u128, u128); 7] = [
         (0xaabb0000, 0x0000ccdd),
         (0xffff, 0xffff),
         (0x0, 0x0),
         (0x0, 0x1),
         (0xabcedefabcdef, 0xabcedefabcdef),
+        (0xabcedef, 0xabcedefabcdef),
+        (0xabcedefabcdef, 0xabcedef),
+    ];
+
+    const NUM_PAIRS2: [(u128, usize); 4] = [
+        (0xffff, 12),
+        (0xabcedefabcdef, 5),
+        (0xffffff, 10),
+        (0xff, 15),
     ];
 
     #[test]
@@ -293,6 +320,32 @@ mod tests {
 
             let res = Bignum::from(a * b);
             let res_big = big_a * big_b;
+
+            assert_eq!(res, res_big);
+        }
+    }
+
+    #[test]
+    fn comparison() {
+        for (a, b) in NUM_PAIRS {
+            let big_a = Bignum::from(a);
+            let big_b = Bignum::from(b);
+
+            let res = a.partial_cmp(&b);
+            let res_big = big_a.partial_cmp(&big_b);
+
+            assert_eq!(res, res_big);
+        }
+    }
+
+    #[test]
+    fn shift_right() {
+        for (a, b) in NUM_PAIRS2 {
+            let big_a = Bignum::from(a);
+
+            let (tmp, _) = a.overflowing_shr(b as u32);
+            let res = Bignum::from(tmp);
+            let res_big = big_a >> b;
 
             assert_eq!(res, res_big);
         }
