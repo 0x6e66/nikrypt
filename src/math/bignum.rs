@@ -37,7 +37,7 @@ impl Bignum {
             res.push_str(&format!("{:02x}", b));
         }
 
-        if let Some(tmp) = res.strip_prefix("0") {
+        if let Some(tmp) = res.strip_prefix('0') {
             res = tmp.to_string();
         }
 
@@ -60,9 +60,15 @@ impl Bignum {
 
         self.0.resize(self.0.len() - count, 0u8);
 
-        if self.0.len() == 0 {
+        if self.0.is_empty() {
             self.0.push(0u8);
         }
+    }
+}
+
+impl Default for Bignum {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
@@ -70,7 +76,7 @@ impl From<u128> for Bignum {
     fn from(value: u128) -> Self {
         let mut res = Self(vec![
             value as u8,
-            (value >> 1 * 8) as u8,
+            (value >> 8) as u8,
             (value >> 2 * 8) as u8,
             (value >> 3 * 8) as u8,
             (value >> 4 * 8) as u8,
@@ -103,99 +109,79 @@ impl PartialEq for Bignum {
             }
         }
 
-        return true;
+        true
     }
 }
 
 impl PartialOrd for Bignum {
     fn lt(&self, other: &Self) -> bool {
-        if self.0.len() > other.0.len() {
-            return false;
-        } else if self.0.len() < other.0.len() {
-            return true;
+        if self.0.len() != other.0.len() {
+            return self.0.len().lt(&other.0.len());
         }
 
         for (s, o) in self.0.iter().rev().zip(other.0.iter().rev()) {
-            if s > o {
-                return false;
-            } else if s < o {
-                return true;
+            if s != o {
+                return s.lt(o);
             }
         }
 
-        return false;
+        false
     }
 
     fn le(&self, other: &Self) -> bool {
-        if self.0.len() > other.0.len() {
-            return false;
-        } else if self.0.len() < other.0.len() {
-            return true;
+        if self.0.len() != other.0.len() {
+            return self.0.len().lt(&other.0.len());
         }
 
         for (s, o) in self.0.iter().rev().zip(other.0.iter().rev()) {
-            if s > o {
-                return false;
-            } else if s < o {
-                return true;
+            if s != o {
+                return s.lt(o);
             }
         }
 
-        return true;
+        true
     }
 
     fn gt(&self, other: &Self) -> bool {
-        if self.0.len() > other.0.len() {
-            return true;
-        } else if self.0.len() < other.0.len() {
-            return false;
+        if self.0.len() != other.0.len() {
+            return self.0.len().gt(&other.0.len());
         }
 
         for (s, o) in self.0.iter().rev().zip(other.0.iter().rev()) {
-            if s > o {
-                return true;
-            } else if s < o {
-                return false;
+            if s != o {
+                return s.gt(o);
             }
         }
 
-        return false;
+        false
     }
 
     fn ge(&self, other: &Self) -> bool {
-        if self.0.len() > other.0.len() {
-            return true;
-        } else if self.0.len() < other.0.len() {
-            return false;
+        if self.0.len() != other.0.len() {
+            return self.0.len().gt(&other.0.len());
         }
 
         for (s, o) in self.0.iter().rev().zip(other.0.iter().rev()) {
-            if s > o {
-                return true;
-            } else if s < o {
-                return false;
+            if s != o {
+                return s.gt(o);
             }
         }
 
-        return true;
+        true
     }
 
     fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
-        if self.0.len() > other.0.len() {
-            return Some(std::cmp::Ordering::Greater);
-        } else if self.0.len() < other.0.len() {
-            return Some(std::cmp::Ordering::Less);
+        if self.0.len() != other.0.len() {
+            return Some(self.0.len().cmp(&other.0.len()));
         }
 
         for (s, o) in self.0.iter().rev().zip(other.0.iter().rev()) {
-            if s > o {
-                return Some(std::cmp::Ordering::Greater);
-            } else if s < o {
-                return Some(std::cmp::Ordering::Less);
+            if s != o {
+                return Some(s.cmp(o));
             }
         }
 
-        return Some(std::cmp::Ordering::Equal);
+        Some(std::cmp::Ordering::Equal)
     }
 }
 
@@ -210,7 +196,7 @@ impl std::ops::Shr<usize> for Bignum {
 
         let mut carry = 0;
         for b in self.0.iter_mut().rev() {
-            let tmp_carry = (*b << (8 - shift)) as u8;
+            let tmp_carry = *b << (8 - shift);
             *b >>= shift;
             *b |= carry;
             carry = tmp_carry;
@@ -236,7 +222,7 @@ impl std::ops::Shl<usize> for Bignum {
 
         let mut carry = 0;
         for b in self.0.iter_mut() {
-            let tmp_carry = (*b >> (8 - shift)) as u8;
+            let tmp_carry = *b >> (8 - shift);
             *b <<= shift;
             *b |= carry;
             carry = tmp_carry;
@@ -320,8 +306,7 @@ impl std::ops::Mul for Bignum {
         let (q, b) = (rhs.0.len(), rhs.0);
         let base = 256;
 
-        let mut product = Vec::new();
-        product.resize(p + q, 0u8);
+        let mut product = vec![0; p + q];
 
         for b_i in 0..q {
             let mut carry = 0;
