@@ -100,7 +100,7 @@ impl Bignum {
 
     /// Integer division (unsigned) with remainder (https://en.wikipedia.org/wiki/Division_algorithm#Integer_division_(unsigned)_with_remainder)
     /// returns (quotient, remainder)
-    pub fn div_with_remainder(self, rhs: Self) -> (Self, Self) {
+    pub fn div_with_remainder(&self, rhs: &Self) -> (Self, Self) {
         let mut quotient = Bignum::new();
         let mut remainder = Bignum::new();
 
@@ -114,7 +114,7 @@ impl Bignum {
                 remainder.unset_bit(0);
             }
 
-            if remainder >= rhs {
+            if remainder >= *rhs {
                 remainder = remainder - rhs.clone();
                 quotient.set_bit(i);
             }
@@ -176,6 +176,23 @@ impl Bignum {
         tmp.strip();
 
         tmp
+    }
+
+    pub fn pow_mod(self, exponent: Self, modulus: Self) -> Self {
+        let mut base = self;
+        let mut exp = exponent;
+
+        let mut t = Bignum::from(1);
+        while !exp.is_zero() {
+            if !exp.is_even() {
+                (_, t) = Bignum::mul_ref(&t, &base).div_with_remainder(&modulus);
+            }
+            (_, base) = Bignum::mul_ref(&base, &base).div_with_remainder(&modulus);
+            exp = exp >> 1;
+        }
+
+        let (_, r) = t.div_with_remainder(&modulus);
+        r
     }
 }
 
@@ -424,7 +441,7 @@ impl std::ops::Div for Bignum {
     type Output = Self;
 
     fn div(self, rhs: Self) -> Self::Output {
-        let (q, _) = self.div_with_remainder(rhs);
+        let (q, _) = self.div_with_remainder(&rhs);
         q
     }
 }
@@ -516,7 +533,7 @@ mod tests {
             let big_a = Bignum::from(a);
             let big_b = Bignum::from(b as u128);
 
-            let (big_q, big_r) = Bignum::div_with_remainder(big_a, big_b);
+            let (big_q, big_r) = Bignum::div_with_remainder(&big_a, &big_b);
             let q = Bignum::from(a / b as u128);
             let r = Bignum::from(a % b as u128);
 
