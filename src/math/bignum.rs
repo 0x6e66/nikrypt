@@ -122,6 +122,36 @@ impl Bignum {
 
         (quotient, remainder)
     }
+
+    pub fn is_zero(&self) -> bool {
+        self.0.len() == 1 && self.0[0] == 0
+    }
+
+    pub fn is_even(&self) -> bool {
+        self.0[0] % 2 == 0
+    }
+
+    /// Exponentiation by squaring (https://en.wikipedia.org/wiki/Exponentiation_by_squaring)
+    pub fn pow(self, other: Self) -> Self {
+        let mut x = self;
+        let mut n = other;
+
+        if n.is_zero() {
+            return 1.into();
+        }
+
+        let mut y = Bignum::from(1);
+        while n > 1.into() {
+            if !n.is_even() {
+                y = x.clone() * y;
+                n = n - 1.into();
+            }
+            x = x.clone() * x;
+            n = n / 2.into();
+        }
+
+        return x * y;
+    }
 }
 
 impl Default for Bignum {
@@ -488,6 +518,19 @@ mod tests {
 
             assert_eq!(big_q, q);
             assert_eq!(big_r, r);
+        }
+    }
+
+    #[test]
+    fn pow() {
+        for (a, b) in [(35, 7)] {
+            let big_a = Bignum::from(a);
+            let big_b = Bignum::from(b);
+
+            let res = Bignum::from(a.pow(b as u32));
+            let res_big = big_a.pow(big_b);
+
+            assert_eq!(res, res_big);
         }
     }
 
