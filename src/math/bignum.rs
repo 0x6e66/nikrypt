@@ -275,6 +275,43 @@ impl std::ops::Add for Bignum {
     }
 }
 
+impl std::ops::Sub for Bignum {
+    type Output = Self;
+
+    fn sub(mut self, rhs: Self) -> Self::Output {
+        if self.0.len() < rhs.0.len() {
+            panic!(
+                "Result of subtraction would be negative.\nlhs: {}\nrhs: {}",
+                self.to_hex_string(),
+                rhs.to_hex_string()
+            );
+        }
+
+        let mut rhs = rhs;
+        rhs.0.resize(self.0.len(), 0);
+
+        let mut carry = 0;
+        for i in 0..rhs.0.len() {
+            let (mut sum, mut tmp_carry) = self.0[i].overflowing_sub(carry);
+            carry = 0;
+            if tmp_carry {
+                carry += 1;
+            }
+
+            (sum, tmp_carry) = sum.overflowing_sub(rhs.0[i]);
+            if tmp_carry {
+                carry += 1;
+            }
+
+            self.0[i] = sum;
+        }
+
+        self.strip();
+
+        self
+    }
+}
+
 impl std::ops::Mul for Bignum {
     type Output = Self;
 
@@ -336,6 +373,40 @@ mod tests {
             let res_big = big_a + big_b;
 
             assert_eq!(res, res_big);
+        }
+    }
+
+    #[test]
+    fn subtraction() {
+        for (a, b) in NUM_PAIRS {
+            let (a, b) = match a >= b {
+                true => (a, b),
+                false => (b, a),
+            };
+
+            let big_a = Bignum::from(a);
+            let big_b = Bignum::from(b);
+
+            let res = Bignum::from(a - b);
+            let res_big = big_a - big_b;
+
+            assert_eq!(res, res_big);
+        }
+    }
+
+    #[test]
+    #[should_panic]
+    fn subtraction_panic() {
+        for (a, b) in NUM_PAIRS {
+            let (a, b) = match a >= b {
+                false => (a, b),
+                true => (b, a),
+            };
+
+            let big_a = Bignum::from(a);
+            let big_b = Bignum::from(b);
+
+            let _res_big = big_a - big_b;
         }
     }
 
