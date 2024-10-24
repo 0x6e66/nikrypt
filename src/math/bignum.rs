@@ -44,6 +44,30 @@ impl Bignum {
         format!("0x{}", res)
     }
 
+    pub fn try_from_hex_string(t: &str) -> Result<Self, std::num::ParseIntError> {
+        let s = t.trim_start_matches("0x");
+
+        let mut vec = vec![];
+
+        let len = s.len();
+        for i in 0..len / 2 {
+            let b = &s[len - (2 * i + 2)..len - 2 * i];
+            let b = u8::from_str_radix(b, 16)?;
+            vec.push(b);
+        }
+
+        if len % 2 != 0 {
+            let b = &s[0..1];
+            let b = u8::from_str_radix(b, 16)?;
+            vec.push(b);
+        }
+
+        let mut b = Bignum::from_little_endian(&vec);
+        b.strip();
+
+        Ok(b)
+    }
+
     pub fn len(&self) -> usize {
         self.0.len()
     }
@@ -642,6 +666,21 @@ mod tests {
             let a = Bignum::from(a);
 
             assert_eq!(a, big_a);
+        }
+    }
+
+    #[test]
+    fn from_hex_string() {
+        for s in [
+            "0xabcdeddedbed12983075980123",
+            "0xdeadbeef",
+            "0x1234124124590856b",
+            "0x0",
+            "0x1",
+        ] {
+            let bn = Bignum::try_from_hex_string(s).unwrap();
+
+            assert_eq!(s, bn.to_hex_string());
         }
     }
 }
