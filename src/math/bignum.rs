@@ -202,7 +202,7 @@ impl Bignum {
         tmp
     }
 
-    pub fn pow_mod(self, exponent: Self, modulus: Self) -> Self {
+    pub fn pow_mod(self, exponent: Self, modulus: &Self) -> Self {
         let mut base = self;
         let mut exp = exponent;
 
@@ -246,6 +246,40 @@ impl Bignum {
         }
 
         Self(vec)
+    }
+
+    pub fn sub_ref(&self, rhs: &Self) -> Self {
+        if self.len() < rhs.len() {
+            panic!(
+                "Result of subtraction would be negative.\nlhs: {}\nrhs: {}",
+                self.to_hex_string(),
+                rhs.to_hex_string()
+            );
+        }
+
+        let (long, short) = match self > rhs {
+            true => (self, rhs),
+            false => (rhs, self),
+        };
+        let mut vec = vec![0u8; long.len()];
+
+        let mut carry = 0;
+        for i in 0..long.len() {
+            let (mut sum, mut tmp_carry) = long.0[i].overflowing_sub(carry);
+            carry = tmp_carry as u8;
+
+            if i < short.len() {
+                (sum, tmp_carry) = sum.overflowing_sub(short.0[i]);
+                carry += tmp_carry as u8;
+            }
+
+            vec[i] = sum;
+        }
+
+        let mut res = Bignum(vec);
+        res.strip();
+
+        res
     }
 }
 
@@ -428,37 +462,8 @@ impl std::ops::Add for Bignum {
 impl std::ops::Sub for Bignum {
     type Output = Self;
 
-    fn sub(mut self, rhs: Self) -> Self::Output {
-        if self.0.len() < rhs.0.len() {
-            panic!(
-                "Result of subtraction would be negative.\nlhs: {}\nrhs: {}",
-                self.to_hex_string(),
-                rhs.to_hex_string()
-            );
-        }
-
-        let mut rhs = rhs;
-        rhs.0.resize(self.0.len(), 0);
-
-        let mut carry = 0;
-        for i in 0..rhs.0.len() {
-            let (mut sum, mut tmp_carry) = self.0[i].overflowing_sub(carry);
-            carry = 0;
-            if tmp_carry {
-                carry += 1;
-            }
-
-            (sum, tmp_carry) = sum.overflowing_sub(rhs.0[i]);
-            if tmp_carry {
-                carry += 1;
-            }
-
-            self.0[i] = sum;
-        }
-
-        self.strip();
-
-        self
+    fn sub(self, rhs: Self) -> Self::Output {
+        self.sub_ref(&rhs)
     }
 }
 
