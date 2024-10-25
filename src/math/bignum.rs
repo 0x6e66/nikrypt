@@ -218,6 +218,35 @@ impl Bignum {
         let (_, r) = t.div_with_remainder(&modulus);
         r
     }
+
+    pub fn add_ref(&self, rhs: &Self) -> Self {
+        let (long, short) = match self.len() > rhs.len() {
+            true => (self, rhs),
+            false => (rhs, self),
+        };
+        let mut vec = vec![0u8; long.len()];
+
+        let mut carry = 0;
+        for i in 0..short.len() {
+            let tmp = short.0[i] as u16 + long.0[i] as u16 + carry;
+            carry = tmp >> 8;
+
+            vec[i] = tmp as u8;
+        }
+
+        for i in short.len()..long.len() {
+            let tmp = long.0[i] as u16 + carry;
+            carry = tmp >> 8;
+
+            vec[i] = tmp as u8;
+        }
+
+        if carry != 0 {
+            vec.push(carry as u8);
+        }
+
+        Self(vec)
+    }
 }
 
 impl Default for Bignum {
@@ -392,26 +421,7 @@ impl std::ops::Add for Bignum {
     type Output = Self;
 
     fn add(self, rhs: Self) -> Self::Output {
-        let (long, mut short) = match self.0.len() > rhs.0.len() {
-            true => (self, rhs),
-            false => (rhs, self),
-        };
-
-        short.0.resize(long.0.len(), 0u8);
-
-        let mut carry = 0;
-        for i in 0..long.0.len() {
-            let tmp = short.0[i] as u32 + long.0[i] as u32 + carry;
-            carry = tmp >> 8;
-
-            short.0[i] = tmp as u8;
-        }
-
-        if carry != 0 {
-            short.0.push(carry as u8);
-        }
-
-        short
+        self.add_ref(&rhs)
     }
 }
 
