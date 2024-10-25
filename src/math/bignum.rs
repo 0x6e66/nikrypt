@@ -139,7 +139,7 @@ impl Bignum {
             }
 
             if remainder >= *rhs {
-                remainder = remainder - rhs.clone();
+                remainder = remainder.sub_ref(rhs);
                 quotient.set_bit(i);
             }
         }
@@ -160,18 +160,21 @@ impl Bignum {
         let mut x = self;
         let mut n = other;
 
+        let one = 1.into();
+        let two = 2.into();
+
         if n.is_zero() {
-            return 1.into();
+            return one;
         }
 
-        let mut y = Bignum::from(1);
+        let mut y = one.clone();
         while n > 1.into() {
             if !n.is_even() {
-                y = x.clone() * y;
-                n = n - 1.into();
+                y = x.mul_ref(&y);
+                n = n.sub_ref(&one);
             }
-            x = x.clone() * x;
-            n = n / 2.into();
+            x = x.mul_ref(&x);
+            (n, _) = n.div_with_remainder(&two);
         }
 
         return x * y;
@@ -187,8 +190,8 @@ impl Bignum {
         for b_i in 0..q {
             let mut carry = 0;
             for a_i in 0..p {
-                let mut tmp = product[a_i + b_i] as u32;
-                tmp += carry + self.0[a_i] as u32 * other.0[b_i] as u32;
+                let mut tmp = product[a_i + b_i] as u16;
+                tmp += carry + self.0[a_i] as u16 * other.0[b_i] as u16;
                 carry = tmp / base;
                 tmp %= base;
                 product[a_i + b_i] = tmp as u8;
@@ -227,15 +230,11 @@ impl Bignum {
         let mut vec = vec![0u8; long.len()];
 
         let mut carry = 0;
-        for i in 0..short.len() {
-            let tmp = short.0[i] as u16 + long.0[i] as u16 + carry;
-            carry = tmp >> 8;
-
-            vec[i] = tmp as u8;
-        }
-
-        for i in short.len()..long.len() {
-            let tmp = long.0[i] as u16 + carry;
+        for i in 0..long.len() {
+            let mut tmp = long.0[i] as u16 + carry;
+            if i < short.len() {
+                tmp += short.0[i] as u16;
+            }
             carry = tmp >> 8;
 
             vec[i] = tmp as u8;
