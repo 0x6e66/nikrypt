@@ -25,6 +25,17 @@ impl BignumFast {
         BignumFast::zero()
     }
 
+    pub fn zero() -> Self {
+        Self {
+            digits: [0; NUM_BYTES],
+            pos: 0,
+        }
+    }
+
+    pub fn len(&self) -> usize {
+        self.pos + 1
+    }
+
     pub fn from_big_endian(value: &[u8]) -> Option<Self> {
         if check_byte_length(value) {
             return None;
@@ -69,17 +80,6 @@ impl BignumFast {
         }
 
         Some(bignum)
-    }
-
-    pub fn zero() -> Self {
-        Self {
-            digits: [0; NUM_BYTES],
-            pos: 0,
-        }
-    }
-
-    pub fn len(&self) -> usize {
-        self.pos + 1
     }
 
     pub fn try_from_hex_string(s: &str) -> Result<Self, std::num::ParseIntError> {
@@ -131,6 +131,69 @@ impl BignumFast {
         format!("0x{}", res)
     }
 
+    pub fn get_bit(&self, pos: usize) -> bool {
+        let byte_pos = pos / 8;
+        if pos >= NUM_BYTES * 8 {
+            panic!("Bit index out of bounds. Max index is {}", NUM_BYTES * 8);
+        }
+
+        let byte = self.digits[byte_pos];
+        (byte >> (pos % 8)) & 1 == 1
+    }
+
+    pub fn set_bit(&mut self, pos: usize) {
+        let byte_pos = pos / 8;
+        if byte_pos >= NUM_BYTES {
+            panic!("Bit index out of bounds. Max index is {}", NUM_BYTES * 8);
+        }
+
+        self.digits[byte_pos] |= 1 << (pos % 8);
+
+        if byte_pos > self.pos {
+            self.pos = byte_pos;
+        }
+    }
+
+    pub fn unset_bit(&mut self, pos: usize) {
+        let byte_pos = pos / 8;
+        if byte_pos >= NUM_BYTES {
+            panic!("Bit index out of bounds. Max index is {}", NUM_BYTES * 8);
+        }
+
+        self.digits[byte_pos] &= !(1 << (pos % 8));
+
+        for (i, e) in self.digits[0..self.len()].iter().enumerate().rev() {
+            if *e != 0 || i == 0 {
+                self.pos = i;
+                return;
+            }
+        }
+    }
+
+    pub fn toggle_bit(&mut self, pos: usize) {
+        let byte_pos = pos / 8;
+        if byte_pos >= NUM_BYTES {
+            panic!("Bit index out of bounds. Max index is {}", NUM_BYTES * 8);
+        }
+
+        self.digits[byte_pos] ^= 1 << (pos % 8);
+
+        if self.digits[byte_pos] != 0 {
+            // set bit
+            if byte_pos > self.pos {
+                self.pos = byte_pos;
+            }
+        } else {
+            // unset bit
+            for (i, e) in self.digits[0..self.len()].iter().enumerate().rev() {
+                if *e != 0 || i == 0 {
+                    self.pos = i;
+                    return;
+                }
+            }
+        }
+    }
+
     pub fn add_ref(&self, rhs: &Self) -> Self {
         let (long, short) = match self.pos > rhs.pos {
             true => (self, rhs),
@@ -157,6 +220,74 @@ impl BignumFast {
             bignum.digits[bignum.len()] = carry as u8;
             bignum.pos += 1;
         }
+
+        bignum
+    }
+
+    pub fn sub_ref(&self, rhs: &Self) -> Self {
+        match self.partial_cmp(rhs) {
+            Some(std::cmp::Ordering::Less) => panic!(
+                "Result of subtraction would be negative.\nlhs: {}\nrhs: {}",
+                self.to_hex_string(),
+                rhs.to_hex_string()
+            ),
+            Some(std::cmp::Ordering::Equal) => return BignumFast::zero(),
+            _ => (),
+        }
+
+        let (long, short) = (self, rhs);
+        let mut bignum = BignumFast::new();
+
+        let mut carry = 0;
+        let mut pos_last_non_zero = 0;
+        for i in 0..long.len() {
+            let (mut sum, mut tmp_carry) = long.digits[i].overflowing_sub(carry);
+            carry = tmp_carry as u8;
+
+            if i < short.len() {
+                (sum, tmp_carry) = sum.overflowing_sub(short.digits[i]);
+                carry += tmp_carry as u8;
+            }
+
+            if sum != 0 {
+                pos_last_non_zero = i;
+            }
+
+            bignum.digits[i] = sum;
+        }
+        bignum.pos = pos_last_non_zero;
+
+        bignum
+    }
+
+    pub fn mul_ref(&self, other: &Self) -> Self {
+        let p = self.len();
+        let q = other.len();
+        let base = 256;
+
+        if p + q > NUM_BYTES {
+            panic!("Attempted multiplication with overflow");
+        }
+
+        let mut bignum = BignumFast::new();
+
+        let mut pos_last_non_zero = 0;
+        for b_i in 0..q {
+            let mut carry = 0;
+            for a_i in 0..p {
+                let mut tmp = bignum.digits[a_i + b_i] as u16;
+                tmp += carry + self.digits[a_i] as u16 * other.digits[b_i] as u16;
+                carry = tmp / base;
+                tmp %= base;
+                bignum.digits[a_i + b_i] = tmp as u8;
+            }
+            if carry != 0 {
+                pos_last_non_zero = b_i + p;
+            }
+            bignum.digits[b_i + p] = carry as u8;
+        }
+
+        bignum.pos = pos_last_non_zero;
 
         bignum
     }
@@ -282,6 +413,22 @@ impl std::ops::Add for BignumFast {
     }
 }
 
+impl std::ops::Sub for BignumFast {
+    type Output = Self;
+
+    fn sub(self, rhs: Self) -> Self::Output {
+        self.sub_ref(&rhs)
+    }
+}
+
+impl std::ops::Mul for BignumFast {
+    type Output = Self;
+
+    fn mul(self, rhs: Self) -> Self::Output {
+        self.mul_ref(&rhs)
+    }
+}
+
 impl From<u128> for BignumFast {
     fn from(value: u128) -> Self {
         let mut bignum = BignumFast::new();
@@ -312,6 +459,13 @@ mod tests {
         (0xabcedefabcdef, 0xabcedefabcdef),
         (0xabcedef, 0xabcedefabcdef),
         (0xabcedefabcdef, 0xabcedef),
+    ];
+
+    const NUM_PAIRS2: [(u128, usize); 4] = [
+        (0xffff, 12),
+        (0xabcedefabcdef, 5),
+        (0xffffff, 10),
+        (0xff, 15),
     ];
 
     #[test]
@@ -414,10 +568,12 @@ mod tests {
     fn from_u128() {
         for (a, b) in NUM_PAIRS {
             let bignum = BignumFast::from(a);
+            println!("{:?} {}", &bignum.digits[0..14], bignum.pos);
             let s = format!("{:#02x}", a);
             assert_eq!(bignum.to_hex_string(), s);
 
             let bignum = BignumFast::from(b);
+            println!("{:?} {}", &bignum.digits[0..14], bignum.pos);
             let s = format!("{:#02x}", b);
             assert_eq!(bignum.to_hex_string(), s);
         }
@@ -437,18 +593,114 @@ mod tests {
     }
 
     #[test]
+    fn subtraction() {
+        for (a, b) in NUM_PAIRS {
+            let (a, b) = match a >= b {
+                true => (a, b),
+                false => (b, a),
+            };
+
+            let big_a = BignumFast::from(a);
+            let big_b = BignumFast::from(b);
+
+            let res = BignumFast::from(a - b);
+            let res_big = big_a - big_b;
+
+            assert_eq!(res, res_big);
+        }
+    }
+
+    #[test]
+    #[should_panic]
+    fn subtraction_panic() {
+        for (a, b) in NUM_PAIRS {
+            let (a, b) = match a >= b {
+                false => (a, b),
+                true => (b, a),
+            };
+
+            let big_a = BignumFast::from(a);
+            let big_b = BignumFast::from(b);
+
+            let _res_big = big_a - big_b;
+        }
+    }
+
+    #[test]
+    fn multiplication() {
+        for (a, b) in NUM_PAIRS {
+            let big_a = BignumFast::from(a);
+            let big_b = BignumFast::from(b);
+
+            let res = BignumFast::from(a * b);
+            let res_big = big_a * big_b;
+
+            assert_eq!(res, res_big);
+        }
+    }
+
+    #[test]
     fn comparison() {
         for (a, b) in NUM_PAIRS {
             let big_a = BignumFast::from(a);
             let big_b = BignumFast::from(b);
-            println!("{} {}", a, b);
-            println!("{:#02x} {:#02x}", a, b);
 
             let res = a.partial_cmp(&b);
             let res_big = big_a.partial_cmp(&big_b);
 
             assert_eq!(res, res_big);
             println!();
+        }
+    }
+
+    #[test]
+    fn get_bit() {
+        for (a, b) in NUM_PAIRS2 {
+            let big_a = BignumFast::from(a);
+
+            let res = (a >> b) & 1 == 1;
+            let res_big = big_a.get_bit(b);
+
+            assert_eq!(res, res_big);
+        }
+    }
+
+    #[test]
+    fn set_bit() {
+        for (mut a, b) in NUM_PAIRS2 {
+            let mut big_a = BignumFast::from(a);
+            big_a.set_bit(b);
+
+            a |= 1 << b;
+            let a = BignumFast::from(a);
+
+            assert_eq!(a, big_a);
+        }
+    }
+
+    #[test]
+    fn unset_bit() {
+        for (mut a, b) in NUM_PAIRS2 {
+            let mut big_a = BignumFast::from(a);
+            big_a.unset_bit(b);
+
+            a &= !(1 << b);
+            let a = BignumFast::from(a);
+
+            assert_eq!(a, big_a);
+        }
+    }
+
+    #[test]
+    fn toggle_bit() {
+        for (mut a, b) in NUM_PAIRS2 {
+            let mut big_a = BignumFast::from(a);
+            big_a.toggle_bit(b);
+
+            a ^= 1 << b;
+            let a = BignumFast::from(a);
+
+            assert_eq!(a, big_a);
         }
     }
 }
