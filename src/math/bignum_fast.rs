@@ -405,6 +405,77 @@ impl PartialOrd for BignumFast {
     }
 }
 
+impl std::ops::Shr<usize> for BignumFast {
+    type Output = Self;
+
+    fn shr(mut self, rhs: usize) -> Self::Output {
+        let shift = (rhs % 8) as u8;
+        let bytes_shift = rhs / 8;
+
+        if bytes_shift >= self.len() {
+            return Self::zero();
+        }
+
+        for i in 0..self.len() - bytes_shift + 1 {
+            self.digits[i] = self.digits[i + bytes_shift];
+        }
+
+        let mut carry = 0;
+        for i in (0..self.len()).rev() {
+            let tmp_carry = self.digits[i] << (8 - shift);
+            self.digits[i] >>= shift;
+            self.digits[i] |= carry;
+            carry = tmp_carry;
+        }
+
+        self.pos -= bytes_shift;
+        if self.digits[self.pos] == 0 && self.pos > 0 {
+            self.pos -= 1;
+        }
+
+        self
+    }
+}
+
+impl std::ops::Shl<usize> for BignumFast {
+    type Output = Self;
+
+    fn shl(mut self, rhs: usize) -> Self::Output {
+        let shift = (rhs % 8) as u8;
+        let mut bytes_shift = rhs / 8;
+
+        if bytes_shift + self.len() > NUM_BYTES {
+            bytes_shift = 0;
+        }
+
+        if bytes_shift > 0 {
+            for i in (bytes_shift..self.len() + bytes_shift).rev() {
+                self.digits[i] = self.digits[i - bytes_shift as usize];
+            }
+
+            for i in 0..bytes_shift {
+                self.digits[i] = 0;
+            }
+        }
+
+        let mut carry = 0;
+        for i in bytes_shift..self.len() + bytes_shift {
+            let tmp_carry = self.digits[i] >> (8 - shift);
+            self.digits[i] <<= shift;
+            self.digits[i] |= carry;
+            carry = tmp_carry;
+        }
+
+        self.pos += bytes_shift;
+        if carry != 0 && self.len() < NUM_BYTES {
+            self.digits[self.len()] = carry;
+            self.pos += 1;
+        }
+
+        self
+    }
+}
+
 impl std::ops::Add for BignumFast {
     type Output = Self;
 
@@ -576,6 +647,32 @@ mod tests {
             println!("{:?} {}", &bignum.digits[0..14], bignum.pos);
             let s = format!("{:#02x}", b);
             assert_eq!(bignum.to_hex_string(), s);
+        }
+    }
+
+    #[test]
+    fn shift_right() {
+        for (a, b) in NUM_PAIRS2 {
+            let big_a = BignumFast::from(a);
+
+            let (tmp, _) = a.overflowing_shr(b as u32);
+            let res = BignumFast::from(tmp);
+            let res_big = big_a >> b;
+
+            assert_eq!(res, res_big);
+        }
+    }
+
+    #[test]
+    fn shift_left() {
+        for (a, b) in NUM_PAIRS2 {
+            let big_a = BignumFast::from(a);
+
+            let tmp = a << b as u32;
+            let res = BignumFast::from(tmp);
+            let res_big = big_a << b;
+
+            assert_eq!(res, res_big);
         }
     }
 
