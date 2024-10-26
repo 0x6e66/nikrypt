@@ -522,6 +522,17 @@ impl From<u128> for BignumFast {
 mod tests {
     use super::*;
 
+    fn check_pos(bn: &BignumFast) {
+        let mut pos_last_non_zero = 0;
+        for (i, e) in bn.digits.iter().enumerate() {
+            if *e != 0 {
+                pos_last_non_zero = i;
+            }
+        }
+
+        assert_eq!(bn.pos, pos_last_non_zero);
+    }
+
     const NUM_PAIRS: [(u128, u128); 7] = [
         (0xaabb0000, 0x0000ccdd),
         (0xffff, 0xffff),
@@ -554,6 +565,7 @@ mod tests {
             ("0x1", 0),
         ] {
             let bignum = BignumFast::try_from_hex_string(s).unwrap();
+            check_pos(&bignum);
 
             println!("{} {:?} {}", s, &bignum.digits[0..7], bignum.pos);
             assert_eq!(p, bignum.pos);
@@ -576,6 +588,7 @@ mod tests {
             ("0x1", 1),
         ] {
             let bignum = BignumFast::try_from_hex_string(s).unwrap();
+            check_pos(&bignum);
 
             println!("{:?} {}", &bignum.digits[0..7], bignum.pos);
             assert_eq!(l, bignum.len());
@@ -597,6 +610,7 @@ mod tests {
             ("0x1", 0),
         ] {
             let bignum = BignumFast::try_from_hex_string(s).unwrap();
+            check_pos(&bignum);
 
             println!("{} {:?} {}", s, &bignum.digits[0..7], bignum.pos);
             assert_eq!(p, bignum.pos);
@@ -614,6 +628,7 @@ mod tests {
             (vec![0, 1, 2, 3, 4, 0], "0x403020100"),
         ] {
             let bignum = BignumFast::from_little_endian(&e).unwrap();
+            check_pos(&bignum);
 
             assert_eq!(bignum.to_hex_string(), s);
         }
@@ -630,6 +645,7 @@ mod tests {
             (vec![0, 1, 2, 3, 4, 0], "0x102030400"),
         ] {
             let bignum = BignumFast::from_big_endian(&e).unwrap();
+            check_pos(&bignum);
 
             assert_eq!(bignum.to_hex_string(), s);
         }
@@ -639,12 +655,12 @@ mod tests {
     fn from_u128() {
         for (a, b) in NUM_PAIRS {
             let bignum = BignumFast::from(a);
-            println!("{:?} {}", &bignum.digits[0..14], bignum.pos);
+            check_pos(&bignum);
             let s = format!("{:#02x}", a);
             assert_eq!(bignum.to_hex_string(), s);
 
             let bignum = BignumFast::from(b);
-            println!("{:?} {}", &bignum.digits[0..14], bignum.pos);
+            check_pos(&bignum);
             let s = format!("{:#02x}", b);
             assert_eq!(bignum.to_hex_string(), s);
         }
@@ -654,9 +670,11 @@ mod tests {
     fn shift_right() {
         for (a, b) in NUM_PAIRS2 {
             let big_a = BignumFast::from(a);
+            check_pos(&big_a);
 
             let (tmp, _) = a.overflowing_shr(b as u32);
             let res = BignumFast::from(tmp);
+            check_pos(&res);
             let res_big = big_a >> b;
 
             assert_eq!(res, res_big);
@@ -667,9 +685,11 @@ mod tests {
     fn shift_left() {
         for (a, b) in NUM_PAIRS2 {
             let big_a = BignumFast::from(a);
+            check_pos(&big_a);
 
             let tmp = a << b as u32;
             let res = BignumFast::from(tmp);
+            check_pos(&res);
             let res_big = big_a << b;
 
             assert_eq!(res, res_big);
@@ -680,9 +700,12 @@ mod tests {
     fn addition() {
         for (a, b) in NUM_PAIRS {
             let big_a = BignumFast::from(a);
+            check_pos(&big_a);
             let big_b = BignumFast::from(b);
+            check_pos(&big_b);
 
             let res = BignumFast::from(a + b);
+            check_pos(&res);
             let res_big = big_a + big_b;
 
             assert_eq!(res, res_big);
@@ -698,9 +721,12 @@ mod tests {
             };
 
             let big_a = BignumFast::from(a);
+            check_pos(&big_a);
             let big_b = BignumFast::from(b);
+            check_pos(&big_b);
 
             let res = BignumFast::from(a - b);
+            check_pos(&res);
             let res_big = big_a - big_b;
 
             assert_eq!(res, res_big);
@@ -717,7 +743,9 @@ mod tests {
             };
 
             let big_a = BignumFast::from(a);
+            check_pos(&big_a);
             let big_b = BignumFast::from(b);
+            check_pos(&big_b);
 
             let _res_big = big_a - big_b;
         }
@@ -727,9 +755,12 @@ mod tests {
     fn multiplication() {
         for (a, b) in NUM_PAIRS {
             let big_a = BignumFast::from(a);
+            check_pos(&big_a);
             let big_b = BignumFast::from(b);
+            check_pos(&big_b);
 
             let res = BignumFast::from(a * b);
+            check_pos(&res);
             let res_big = big_a * big_b;
 
             assert_eq!(res, res_big);
@@ -740,7 +771,9 @@ mod tests {
     fn comparison() {
         for (a, b) in NUM_PAIRS {
             let big_a = BignumFast::from(a);
+            check_pos(&big_a);
             let big_b = BignumFast::from(b);
+            check_pos(&big_b);
 
             let res = a.partial_cmp(&b);
             let res_big = big_a.partial_cmp(&big_b);
@@ -754,6 +787,7 @@ mod tests {
     fn get_bit() {
         for (a, b) in NUM_PAIRS2 {
             let big_a = BignumFast::from(a);
+            check_pos(&big_a);
 
             let res = (a >> b) & 1 == 1;
             let res_big = big_a.get_bit(b);
@@ -766,6 +800,7 @@ mod tests {
     fn set_bit() {
         for (mut a, b) in NUM_PAIRS2 {
             let mut big_a = BignumFast::from(a);
+            check_pos(&big_a);
             big_a.set_bit(b);
 
             a |= 1 << b;
@@ -779,6 +814,7 @@ mod tests {
     fn unset_bit() {
         for (mut a, b) in NUM_PAIRS2 {
             let mut big_a = BignumFast::from(a);
+            check_pos(&big_a);
             big_a.unset_bit(b);
 
             a &= !(1 << b);
@@ -792,6 +828,7 @@ mod tests {
     fn toggle_bit() {
         for (mut a, b) in NUM_PAIRS2 {
             let mut big_a = BignumFast::from(a);
+            check_pos(&big_a);
             big_a.toggle_bit(b);
 
             a ^= 1 << b;
