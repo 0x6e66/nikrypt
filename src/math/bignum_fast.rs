@@ -32,6 +32,14 @@ impl BignumFast {
         }
     }
 
+    pub fn is_zero(&self) -> bool {
+        self.pos == 0 && self.digits[0] == 0
+    }
+
+    pub fn is_even(&self) -> bool {
+        self.digits[0] % 2 == 0
+    }
+
     pub fn len(&self) -> usize {
         self.pos + 1
     }
@@ -291,6 +299,45 @@ impl BignumFast {
 
         bignum
     }
+
+    pub fn div_with_remainder(&self, rhs: &Self) -> (Self, Self) {
+        let mut q = BignumFast::new();
+        let mut r = BignumFast::new();
+
+        let (n_len, n) = (self.len() * 8, self);
+
+        for i in (0..n_len).rev() {
+            r = r << 1;
+            if n.get_bit(i) {
+                r.se_bit(0);
+            } else {
+                r.unset_bit(0);
+            }
+
+            if r >= *rhs {
+                r = r.sub_ref(rhs);
+                q.set_bit(i);
+            }
+        }
+
+        (q, r)
+    }
+
+    pub fn pow_mod(self, exponent: Self, modulus: &Self) -> Self {
+        let mut base = self;
+        let mut exp = exponent;
+
+        let mut t = BignumFast::from(1);
+        while !exp.is_zero() {
+            if !exp.is_even() {
+                (_, t) = BignumFast::mul_ref(&t, &base).div_with_remainder(&modulus);
+            }
+            (_, base) = BignumFast::mul_ref(&base, &base).div_with_remainder(&modulus);
+            exp = exp >> 1;
+        }
+        let (_, r) = t.div_with_remainder(&modulus);
+        r
+    }
 }
 
 impl PartialEq for BignumFast {
@@ -416,16 +463,21 @@ impl std::ops::Shr<usize> for BignumFast {
             return Self::zero();
         }
 
-        for i in 0..self.len() - bytes_shift + 1 {
+        for i in 0..self.len() {
             self.digits[i] = self.digits[i + bytes_shift];
+        }
+
+        if shift == 0 {
+            self.pos -= bytes_shift;
+            return self;
         }
 
         let mut carry = 0;
         for i in (0..self.len()).rev() {
-            let tmp_carry = self.digits[i] << (8 - shift);
+            let tmp_carry = (self.digits[i] as u16) << (8 - shift);
             self.digits[i] >>= shift;
             self.digits[i] |= carry;
-            carry = tmp_carry;
+            carry = tmp_carry as u8;
         }
 
         self.pos -= bytes_shift;
@@ -460,10 +512,10 @@ impl std::ops::Shl<usize> for BignumFast {
 
         let mut carry = 0;
         for i in bytes_shift..self.len() + bytes_shift {
-            let tmp_carry = self.digits[i] >> (8 - shift);
+            let tmp_carry = (self.digits[i] as u16) >> (8 - shift);
             self.digits[i] <<= shift;
             self.digits[i] |= carry;
-            carry = tmp_carry;
+            carry = tmp_carry as u8;
         }
 
         self.pos += bytes_shift;
@@ -567,9 +619,29 @@ mod tests {
             let bignum = BignumFast::try_from_hex_string(s).unwrap();
             check_pos(&bignum);
 
-            println!("{} {:?} {}", s, &bignum.digits[0..7], bignum.pos);
             assert_eq!(p, bignum.pos);
             assert_eq!(s, bignum.to_hex_string());
+        }
+    }
+
+    #[test]
+    fn hex_string_2() {
+        for (a, b) in NUM_PAIRS {
+            let s = format!("{:#02x}", a);
+
+            let bignum = BignumFast::try_from_hex_string(&s).unwrap();
+            check_pos(&bignum);
+
+            let bignum2 = BignumFast::from(a);
+            assert_eq!(bignum, bignum2);
+
+            let s = format!("{:#02x}", b);
+
+            let bignum = BignumFast::try_from_hex_string(&s).unwrap();
+            check_pos(&bignum);
+
+            let bignum2 = BignumFast::from(b);
+            assert_eq!(bignum, bignum2);
         }
     }
 
@@ -668,11 +740,17 @@ mod tests {
 
     #[test]
     fn shift_right() {
-        for (a, b) in NUM_PAIRS2 {
+        let base = 0xabcdef;
+        let mut test_cases = vec![];
+        for i in 0..127 {
+            test_cases.push((base, i as usize));
+        }
+
+        for (a, b) in test_cases {
             let big_a = BignumFast::from(a);
             check_pos(&big_a);
 
-            let (tmp, _) = a.overflowing_shr(b as u32);
+            let tmp = a >> b;
             let res = BignumFast::from(tmp);
             check_pos(&res);
             let res_big = big_a >> b;
@@ -683,7 +761,14 @@ mod tests {
 
     #[test]
     fn shift_left() {
-        for (a, b) in NUM_PAIRS2 {
+        let base = 0x1;
+        let mut test_cases = vec![];
+
+        for i in 0..127 {
+            test_cases.push((base, i as usize));
+        }
+
+        for (a, b) in test_cases {
             let big_a = BignumFast::from(a);
             check_pos(&big_a);
 
@@ -714,7 +799,13 @@ mod tests {
 
     #[test]
     fn subtraction() {
-        for (a, b) in NUM_PAIRS {
+        let base = 0xabcd;
+        let mut test_caes = vec![];
+        for i in 0..base * 2 {
+            test_caes.push((base, i));
+        }
+
+        for (a, b) in test_caes {
             let (a, b) = match a >= b {
                 true => (a, b),
                 false => (b, a),
@@ -764,6 +855,31 @@ mod tests {
             let res_big = big_a * big_b;
 
             assert_eq!(res, res_big);
+        }
+    }
+
+    #[test]
+    fn division_with_remainder() {
+        for (a, b) in [
+            (0x12341234, 1234),
+            (0xabcdef, 123),
+            (0xabcdabcdbdb123, 3001),
+        ] {
+            let big_a = BignumFast::from(a);
+            check_pos(&big_a);
+            let big_b = BignumFast::from(b as u128);
+            check_pos(&big_b);
+
+            let (big_q, big_r) = BignumFast::div_with_remainder(&big_a, &big_b);
+            check_pos(&big_q);
+            check_pos(&big_r);
+            let q = BignumFast::from(a / b as u128);
+            let r = BignumFast::from(a % b as u128);
+            check_pos(&q);
+            check_pos(&r);
+
+            assert_eq!(big_q, q);
+            assert_eq!(big_r, r);
         }
     }
 

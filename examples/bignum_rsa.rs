@@ -11,19 +11,11 @@ fn main() {
     let msg = Bignum::try_from_hex_string("0x414141414141414141").unwrap();
     println!("Mesage to enc: '{}'", msg.to_hex_string());
 
-    let cip = enc(msg.clone(), pub_exp, n.clone());
+    let cip = Bignum::pow_mod(msg.clone(), pub_exp, &n);
     println!("Encrypted message: '{}'", cip.to_hex_string());
 
-    let clear = dec(cip, priv_exp, n);
-    println!("Encrypted message: '{}'", clear.to_hex_string());
+    let clear = Bignum::pow_mod(cip, priv_exp, &n);
+    println!("Decrypted message: '{}'", clear.to_hex_string());
 
     assert_eq!(clear, msg);
-}
-
-fn enc(msg: Bignum, exp: Bignum, modu: Bignum) -> Bignum {
-    Bignum::pow_mod(msg, exp, &modu)
-}
-
-fn dec(ciph: Bignum, exp: Bignum, modu: Bignum) -> Bignum {
-    Bignum::pow_mod(ciph, exp, &modu)
 }
