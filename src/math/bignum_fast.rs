@@ -309,7 +309,7 @@ impl BignumFast {
         for i in (0..n_len).rev() {
             r = r << 1;
             if n.get_bit(i) {
-                r.se_bit(0);
+                r.set_bit(0);
             } else {
                 r.unset_bit(0);
             }
@@ -801,7 +801,7 @@ mod tests {
     fn subtraction() {
         let base = 0xabcd;
         let mut test_caes = vec![];
-        for i in 0..base * 2 {
+        for i in 0..1280 {
             test_caes.push((base, i));
         }
 
@@ -914,10 +914,18 @@ mod tests {
 
     #[test]
     fn set_bit() {
-        for (mut a, b) in NUM_PAIRS2 {
+        let base = 0xaabb;
+        let mut test_cases = vec![];
+
+        for i in 0..128 {
+            test_cases.push((base, i as usize));
+        }
+
+        for (mut a, b) in test_cases {
             let mut big_a = BignumFast::from(a);
             check_pos(&big_a);
             big_a.set_bit(b);
+            check_pos(&big_a);
 
             a |= 1 << b;
             let a = BignumFast::from(a);
@@ -928,10 +936,18 @@ mod tests {
 
     #[test]
     fn unset_bit() {
-        for (mut a, b) in NUM_PAIRS2 {
+        let base = 0xaabb;
+        let mut test_cases = vec![];
+
+        for i in 0..128 {
+            test_cases.push((base, i as usize));
+        }
+
+        for (mut a, b) in test_cases {
             let mut big_a = BignumFast::from(a);
             check_pos(&big_a);
             big_a.unset_bit(b);
+            check_pos(&big_a);
 
             a &= !(1 << b);
             let a = BignumFast::from(a);
@@ -942,10 +958,18 @@ mod tests {
 
     #[test]
     fn toggle_bit() {
-        for (mut a, b) in NUM_PAIRS2 {
+        let base = 0xaabb;
+        let mut test_cases = vec![];
+
+        for i in 0..128 {
+            test_cases.push((base, i as usize));
+        }
+
+        for (mut a, b) in test_cases {
             let mut big_a = BignumFast::from(a);
             check_pos(&big_a);
             big_a.toggle_bit(b);
+            check_pos(&big_a);
 
             a ^= 1 << b;
             let a = BignumFast::from(a);

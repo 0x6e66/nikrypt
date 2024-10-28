@@ -507,7 +507,14 @@ mod tests {
 
     #[test]
     fn addition() {
-        for (a, b) in NUM_PAIRS {
+        let base = 0xaabb;
+        let mut test_cases = vec![];
+
+        for i in 0..base {
+            test_cases.push((base, i));
+        }
+
+        for (a, b) in test_cases {
             let big_a = Bignum::from(a);
             let big_b = Bignum::from(b);
 
@@ -520,7 +527,14 @@ mod tests {
 
     #[test]
     fn subtraction() {
-        for (a, b) in NUM_PAIRS {
+        let base = 0xaabb;
+        let mut test_cases = vec![];
+
+        for i in 0..base {
+            test_cases.push((base, i));
+        }
+
+        for (a, b) in test_cases {
             let (a, b) = match a >= b {
                 true => (a, b),
                 false => (b, a),
