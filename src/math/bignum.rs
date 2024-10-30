@@ -1,3 +1,4 @@
+use std::io::Read;
 /// Internal storage in little endian
 ///
 /// 0xabcdef00 -> Bignum([0x00, 0xef, 0xcd, 0xab])
@@ -279,6 +280,18 @@ impl Bignum {
         res.strip();
 
         res
+    }
+
+    /// Generate random number with `n` bytes
+    pub fn rand(n: usize) -> Self {
+        if n <= 0 {
+            panic!("Can't create Bignum with 0 bytes. n has to be >= 0");
+        }
+        let mut f = std::fs::File::open("/dev/urandom").expect("Can't open file /dev/urandom");
+        let mut buf = vec![0; n];
+        f.read_exact(&mut buf)
+            .expect("Can't read from file /dev/urandom");
+        Self(buf)
     }
 }
 
