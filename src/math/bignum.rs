@@ -4,7 +4,7 @@ use std::io::Read;
 /// 0xabcdef00 -> Bignum([0x00, 0xef, 0xcd, 0xab])
 #[derive(Debug, Clone)]
 pub struct Bignum {
-    pub digits: Vec<u8>,
+    digits: Vec<u8>,
 }
 
 impl Bignum {
@@ -13,15 +13,21 @@ impl Bignum {
     }
 
     pub fn from_little_endian(value: &[u8]) -> Self {
-        Self {
+        let mut bn = Self {
             digits: Vec::from(value),
-        }
+        };
+
+        bn.strip();
+        bn
     }
 
     pub fn from_big_endian(value: &[u8]) -> Self {
         let mut vec = Vec::from(value);
         vec.reverse();
-        Self { digits: vec }
+
+        let mut bn = Self { digits: vec };
+        bn.strip();
+        bn
     }
 
     pub fn to_hex_string(&self) -> String {
@@ -77,7 +83,7 @@ impl Bignum {
         self.digits.len()
     }
 
-    pub fn strip(&mut self) {
+    fn strip(&mut self) {
         let mut count = 0;
 
         for b in self.digits.iter().rev() {
