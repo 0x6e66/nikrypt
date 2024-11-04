@@ -1,7 +1,6 @@
-use std::ops::{IndexMut, Index};
+use std::ops::{Index, IndexMut};
 
-use super::utils::{sbox, inv_sbox};
-
+use super::utils::{inv_sbox, sbox};
 
 #[derive(Clone, Copy, Debug)]
 pub struct Word(pub [u8; 4]);
@@ -36,7 +35,7 @@ impl Word {
     pub fn get(&self, i: usize) -> Option<u8> {
         match i {
             0..=3 => Some(self.0[i]),
-            _ => None
+            _ => None,
         }
     }
 }
@@ -64,7 +63,6 @@ impl PartialEq for Word {
         true
     }
 }
-
 
 impl Index<&'_ usize> for Word {
     type Output = u8;
