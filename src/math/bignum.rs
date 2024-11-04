@@ -3,32 +3,36 @@ use std::io::Read;
 ///
 /// 0xabcdef00 -> Bignum([0x00, 0xef, 0xcd, 0xab])
 #[derive(Debug, Clone)]
-pub struct Bignum(Vec<u8>);
+pub struct Bignum {
+    pub digits: Vec<u8>,
+}
 
 impl Bignum {
     pub fn new() -> Self {
-        Self(vec![0u8])
+        Self { digits: vec![0u8] }
     }
 
     pub fn from_little_endian(value: &[u8]) -> Self {
-        Self(Vec::from(value))
+        Self {
+            digits: Vec::from(value),
+        }
     }
 
     pub fn from_big_endian(value: &[u8]) -> Self {
         let mut vec = Vec::from(value);
         vec.reverse();
-        Self(vec)
+        Self { digits: vec }
     }
 
     pub fn to_hex_string(&self) -> String {
-        if self.0.len() == 1 && self.0[0] == 0 {
+        if self.digits.len() == 1 && self.digits[0] == 0 {
             return String::from("0x0");
         }
 
         let mut res = String::new();
         let mut leading_zeros = true;
 
-        for b in self.0.iter().rev() {
+        for b in self.digits.iter().rev() {
             if *b == 0 && leading_zeros {
                 continue;
             } else if *b != 0 {
@@ -70,57 +74,57 @@ impl Bignum {
     }
 
     pub fn len(&self) -> usize {
-        self.0.len()
+        self.digits.len()
     }
 
-    fn strip(&mut self) {
+    pub fn strip(&mut self) {
         let mut count = 0;
 
-        for b in self.0.iter().rev() {
+        for b in self.digits.iter().rev() {
             if *b != 0 {
                 break;
             }
             count += 1;
         }
 
-        self.0.resize(self.0.len() - count, 0u8);
+        self.digits.resize(self.digits.len() - count, 0u8);
 
-        if self.0.is_empty() {
-            self.0.push(0u8);
+        if self.digits.is_empty() {
+            self.digits.push(0u8);
         }
     }
 
     pub fn get_bit(&self, pos: usize) -> bool {
-        if pos >= self.0.len() * 8 {
+        if pos >= self.digits.len() * 8 {
             return false;
         }
 
-        let byte = self.0[pos / 8];
+        let byte = self.digits[pos / 8];
         (byte >> (pos % 8)) & 1 == 1
     }
 
     pub fn set_bit(&mut self, pos: usize) {
-        if pos >= self.0.len() * 8 {
-            self.0.resize(pos / 8 + 1, 0);
+        if pos >= self.digits.len() * 8 {
+            self.digits.resize(pos / 8 + 1, 0);
         }
 
-        self.0[pos / 8] |= 1 << (pos % 8);
+        self.digits[pos / 8] |= 1 << (pos % 8);
     }
 
     pub fn unset_bit(&mut self, pos: usize) {
-        if pos >= self.0.len() * 8 {
+        if pos >= self.digits.len() * 8 {
             return;
         }
 
-        self.0[pos / 8] &= !(1 << (pos % 8));
+        self.digits[pos / 8] &= !(1 << (pos % 8));
     }
 
     pub fn toggle_bit(&mut self, pos: usize) {
-        if pos >= self.0.len() * 8 {
-            self.0.resize(pos / 8 + 1, 0);
+        if pos >= self.digits.len() * 8 {
+            self.digits.resize(pos / 8 + 1, 0);
         }
 
-        self.0[pos / 8] ^= 1 << (pos % 8);
+        self.digits[pos / 8] ^= 1 << (pos % 8);
     }
 
     /// Integer division (unsigned) with remainder (https://en.wikipedia.org/wiki/Division_algorithm#Integer_division_(unsigned)_with_remainder)
@@ -129,7 +133,7 @@ impl Bignum {
         let mut quotient = Bignum::new();
         let mut remainder = Bignum::new();
 
-        let (n_len, n) = (self.0.len() * 8, self);
+        let (n_len, n) = (self.digits.len() * 8, self);
 
         for i in (0..n_len).rev() {
             remainder = remainder << 1;
@@ -149,11 +153,11 @@ impl Bignum {
     }
 
     pub fn is_zero(&self) -> bool {
-        self.0.len() == 1 && self.0[0] == 0
+        self.digits.len() == 1 && self.digits[0] == 0
     }
 
     pub fn is_even(&self) -> bool {
-        self.0[0] % 2 == 0
+        self.digits[0] % 2 == 0
     }
 
     /// Exponentiation by squaring (https://en.wikipedia.org/wiki/Exponentiation_by_squaring)
@@ -182,8 +186,8 @@ impl Bignum {
     }
 
     pub fn mul_ref(&self, other: &Self) -> Self {
-        let p = self.0.len();
-        let q = other.0.len();
+        let p = self.digits.len();
+        let q = other.digits.len();
         let base = 256;
 
         let mut product = vec![0; p + q];
@@ -192,7 +196,7 @@ impl Bignum {
             let mut carry = 0;
             for a_i in 0..p {
                 let mut tmp = product[a_i + b_i] as u16;
-                tmp += carry + self.0[a_i] as u16 * other.0[b_i] as u16;
+                tmp += carry + self.digits[a_i] as u16 * other.digits[b_i] as u16;
                 carry = tmp / base;
                 tmp %= base;
                 product[a_i + b_i] = tmp as u8;
@@ -200,7 +204,7 @@ impl Bignum {
             product[b_i + p] = carry as u8;
         }
 
-        let mut tmp = Self(product);
+        let mut tmp = Self { digits: product };
         tmp.strip();
 
         tmp
@@ -232,9 +236,9 @@ impl Bignum {
 
         let mut carry = 0;
         for i in 0..long.len() {
-            let mut tmp = long.0[i] as u16 + carry;
+            let mut tmp = long.digits[i] as u16 + carry;
             if i < short.len() {
-                tmp += short.0[i] as u16;
+                tmp += short.digits[i] as u16;
             }
             carry = tmp >> 8;
 
@@ -245,7 +249,7 @@ impl Bignum {
             vec.push(carry as u8);
         }
 
-        Self(vec)
+        Self { digits: vec }
     }
 
     pub fn sub_ref(&self, rhs: &Self) -> Self {
@@ -265,18 +269,18 @@ impl Bignum {
 
         let mut carry = 0;
         for i in 0..long.len() {
-            let (mut sum, mut tmp_carry) = long.0[i].overflowing_sub(carry);
+            let (mut sum, mut tmp_carry) = long.digits[i].overflowing_sub(carry);
             carry = tmp_carry as u8;
 
             if i < short.len() {
-                (sum, tmp_carry) = sum.overflowing_sub(short.0[i]);
+                (sum, tmp_carry) = sum.overflowing_sub(short.digits[i]);
                 carry += tmp_carry as u8;
             }
 
             vec[i] = sum;
         }
 
-        let mut res = Bignum(vec);
+        let mut res = Self { digits: vec };
         res.strip();
 
         res
@@ -291,7 +295,7 @@ impl Bignum {
         let mut buf = vec![0; n];
         f.read_exact(&mut buf)
             .expect("Can't read from file /dev/urandom");
-        Self(buf)
+        Self { digits: buf }
     }
 }
 
@@ -303,24 +307,26 @@ impl Default for Bignum {
 
 impl From<u128> for Bignum {
     fn from(value: u128) -> Self {
-        let mut res = Self(vec![
-            value as u8,
-            (value >> 8) as u8,
-            (value >> (2 * 8)) as u8,
-            (value >> (3 * 8)) as u8,
-            (value >> (4 * 8)) as u8,
-            (value >> (5 * 8)) as u8,
-            (value >> (6 * 8)) as u8,
-            (value >> (7 * 8)) as u8,
-            (value >> (8 * 8)) as u8,
-            (value >> (9 * 8)) as u8,
-            (value >> (10 * 8)) as u8,
-            (value >> (11 * 8)) as u8,
-            (value >> (12 * 8)) as u8,
-            (value >> (13 * 8)) as u8,
-            (value >> (14 * 8)) as u8,
-            (value >> (15 * 8)) as u8,
-        ]);
+        let mut res = Self {
+            digits: vec![
+                value as u8,
+                (value >> 8) as u8,
+                (value >> (2 * 8)) as u8,
+                (value >> (3 * 8)) as u8,
+                (value >> (4 * 8)) as u8,
+                (value >> (5 * 8)) as u8,
+                (value >> (6 * 8)) as u8,
+                (value >> (7 * 8)) as u8,
+                (value >> (8 * 8)) as u8,
+                (value >> (9 * 8)) as u8,
+                (value >> (10 * 8)) as u8,
+                (value >> (11 * 8)) as u8,
+                (value >> (12 * 8)) as u8,
+                (value >> (13 * 8)) as u8,
+                (value >> (14 * 8)) as u8,
+                (value >> (15 * 8)) as u8,
+            ],
+        };
         res.strip();
         res
     }
@@ -328,12 +334,12 @@ impl From<u128> for Bignum {
 
 impl PartialEq for Bignum {
     fn eq(&self, other: &Self) -> bool {
-        if self.0.len() != other.0.len() {
+        if self.digits.len() != other.digits.len() {
             return false;
         }
 
-        for i in 0..self.0.len() {
-            if self.0[i] != other.0[i] {
+        for i in 0..self.digits.len() {
+            if self.digits[i] != other.digits[i] {
                 return false;
             }
         }
@@ -344,11 +350,11 @@ impl PartialEq for Bignum {
 
 impl PartialOrd for Bignum {
     fn lt(&self, other: &Self) -> bool {
-        if self.0.len() != other.0.len() {
-            return self.0.len().lt(&other.0.len());
+        if self.digits.len() != other.digits.len() {
+            return self.digits.len().lt(&other.digits.len());
         }
 
-        for (s, o) in self.0.iter().rev().zip(other.0.iter().rev()) {
+        for (s, o) in self.digits.iter().rev().zip(other.digits.iter().rev()) {
             if s != o {
                 return s.lt(o);
             }
@@ -358,11 +364,11 @@ impl PartialOrd for Bignum {
     }
 
     fn le(&self, other: &Self) -> bool {
-        if self.0.len() != other.0.len() {
-            return self.0.len().lt(&other.0.len());
+        if self.digits.len() != other.digits.len() {
+            return self.digits.len().lt(&other.digits.len());
         }
 
-        for (s, o) in self.0.iter().rev().zip(other.0.iter().rev()) {
+        for (s, o) in self.digits.iter().rev().zip(other.digits.iter().rev()) {
             if s != o {
                 return s.lt(o);
             }
@@ -372,11 +378,11 @@ impl PartialOrd for Bignum {
     }
 
     fn gt(&self, other: &Self) -> bool {
-        if self.0.len() != other.0.len() {
-            return self.0.len().gt(&other.0.len());
+        if self.digits.len() != other.digits.len() {
+            return self.digits.len().gt(&other.digits.len());
         }
 
-        for (s, o) in self.0.iter().rev().zip(other.0.iter().rev()) {
+        for (s, o) in self.digits.iter().rev().zip(other.digits.iter().rev()) {
             if s != o {
                 return s.gt(o);
             }
@@ -386,11 +392,11 @@ impl PartialOrd for Bignum {
     }
 
     fn ge(&self, other: &Self) -> bool {
-        if self.0.len() != other.0.len() {
-            return self.0.len().gt(&other.0.len());
+        if self.digits.len() != other.digits.len() {
+            return self.digits.len().gt(&other.digits.len());
         }
 
-        for (s, o) in self.0.iter().rev().zip(other.0.iter().rev()) {
+        for (s, o) in self.digits.iter().rev().zip(other.digits.iter().rev()) {
             if s != o {
                 return s.gt(o);
             }
@@ -400,11 +406,11 @@ impl PartialOrd for Bignum {
     }
 
     fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
-        if self.0.len() != other.0.len() {
-            return Some(self.0.len().cmp(&other.0.len()));
+        if self.digits.len() != other.digits.len() {
+            return Some(self.digits.len().cmp(&other.digits.len()));
         }
 
-        for (s, o) in self.0.iter().rev().zip(other.0.iter().rev()) {
+        for (s, o) in self.digits.iter().rev().zip(other.digits.iter().rev()) {
             if s != o {
                 return Some(s.cmp(o));
             }
@@ -418,15 +424,22 @@ impl std::ops::Shr<usize> for Bignum {
     type Output = Self;
 
     fn shr(mut self, rhs: usize) -> Self::Output {
-        let (new_len, _) = self.0.len().overflowing_sub(rhs / 8);
-        let shift = (rhs % 8) as u8;
+        let new_len = self.len() - self.digits.len().saturating_sub(rhs / 8);
+        let bit_shift = (rhs % 8) as u8;
 
-        self.0.resize(new_len, 0);
+        for _ in 0..new_len {
+            self.digits.remove(0);
+        }
+
+        if bit_shift == 0 {
+            self.strip();
+            return self;
+        }
 
         let mut carry = 0;
-        for b in self.0.iter_mut().rev() {
-            let tmp_carry = *b << (8 - shift);
-            *b >>= shift;
+        for b in self.digits.iter_mut().rev() {
+            let tmp_carry = *b << (8 - bit_shift);
+            *b >>= bit_shift;
             *b |= carry;
             carry = tmp_carry;
         }
@@ -441,16 +454,21 @@ impl std::ops::Shl<usize> for Bignum {
     type Output = Self;
 
     fn shl(mut self, rhs: usize) -> Self::Output {
+        let byte_shift = rhs / 8;
         let shift = (rhs % 8) as u8;
 
-        self.0.push(0);
-
-        for _ in 0..(rhs / 8) {
-            self.0.insert(0, 0);
+        for _ in 0..byte_shift {
+            self.digits.insert(0, 0);
         }
 
+        if shift == 0 {
+            return self;
+        }
+
+        self.digits.push(0);
+
         let mut carry = 0;
-        for b in self.0.iter_mut() {
+        for b in self.digits.iter_mut() {
             let tmp_carry = *b >> (8 - shift);
             *b <<= shift;
             *b |= carry;
@@ -501,30 +519,13 @@ impl std::ops::Div for Bignum {
 mod tests {
     use super::*;
 
-    const NUM_PAIRS: [(u128, u128); 7] = [
-        (0xaabb0000, 0x0000ccdd),
-        (0xffff, 0xffff),
-        (0x0, 0x0),
-        (0x0, 0x1),
-        (0xabcedefabcdef, 0xabcedefabcdef),
-        (0xabcedef, 0xabcedefabcdef),
-        (0xabcedefabcdef, 0xabcedef),
-    ];
-
-    const NUM_PAIRS2: [(u128, usize); 4] = [
-        (0xffff, 12),
-        (0xabcedefabcdef, 5),
-        (0xffffff, 10),
-        (0xff, 15),
-    ];
-
     #[test]
     fn addition() {
-        let base = 0xaabb;
-        let mut test_cases = vec![];
-
-        for i in 0..base {
-            test_cases.push((base, i));
+        let mut test_cases: Vec<(u128, u128)> = vec![];
+        for a in (0..0xabcedef).step_by(300_000) {
+            for b in (0..0xabcedef).step_by(300_000) {
+                test_cases.push((a, b));
+            }
         }
 
         for (a, b) in test_cases {
@@ -540,11 +541,11 @@ mod tests {
 
     #[test]
     fn subtraction() {
-        let base = 0xaabb;
-        let mut test_cases = vec![];
-
-        for i in 0..base {
-            test_cases.push((base, i));
+        let mut test_cases: Vec<(u128, u128)> = vec![];
+        for a in (0..0xabcedef).step_by(300_000) {
+            for b in (0..0xabcedef).step_by(300_000) {
+                test_cases.push((a, b));
+            }
         }
 
         for (a, b) in test_cases {
@@ -566,7 +567,14 @@ mod tests {
     #[test]
     #[should_panic]
     fn subtraction_panic() {
-        for (a, b) in NUM_PAIRS {
+        let mut test_cases: Vec<(u128, u128)> = vec![];
+        for a in (0..0xabcedef).step_by(300_000) {
+            for b in (0..0xabcedef).step_by(300_000) {
+                test_cases.push((a, b));
+            }
+        }
+
+        for (a, b) in test_cases {
             let (a, b) = match a >= b {
                 false => (a, b),
                 true => (b, a),
@@ -575,13 +583,21 @@ mod tests {
             let big_a = Bignum::from(a);
             let big_b = Bignum::from(b);
 
+            // should panic here
             let _res_big = big_a - big_b;
         }
     }
 
     #[test]
     fn multiplication() {
-        for (a, b) in NUM_PAIRS {
+        let mut test_cases: Vec<(u128, u128)> = vec![];
+        for a in (0..0xabcedef).step_by(300_000) {
+            for b in (0..0xabcedef).step_by(300_000) {
+                test_cases.push((a, b));
+            }
+        }
+
+        for (a, b) in test_cases {
             let big_a = Bignum::from(a);
             let big_b = Bignum::from(b);
 
@@ -594,7 +610,18 @@ mod tests {
 
     #[test]
     fn division_with_remainder() {
-        for (a, b) in NUM_PAIRS2 {
+        let mut test_cases: Vec<(u128, u128)> = vec![];
+        for a in (0..0xabcedef).step_by(300_000) {
+            for b in (0..0xabcedef).step_by(300_000) {
+                test_cases.push((a, b));
+            }
+        }
+
+        for (a, b) in test_cases {
+            if b == 0 {
+                continue;
+            }
+
             let big_a = Bignum::from(a);
             let big_b = Bignum::from(b as u128);
 
@@ -609,7 +636,14 @@ mod tests {
 
     #[test]
     fn pow() {
-        for (a, b) in [(35, 7)] {
+        let mut test_cases = vec![];
+        for a in 0..20 {
+            for b in 0..20 {
+                test_cases.push((a, b));
+            }
+        }
+
+        for (a, b) in test_cases {
             let big_a = Bignum::from(a);
             let big_b = Bignum::from(b);
 
@@ -622,7 +656,14 @@ mod tests {
 
     #[test]
     fn comparison() {
-        for (a, b) in NUM_PAIRS {
+        let mut test_cases: Vec<(u128, u128)> = vec![];
+        for a in (0..0xabcedef).step_by(300_000) {
+            for b in (0..0xabcedef).step_by(300_000) {
+                test_cases.push((a, b));
+            }
+        }
+
+        for (a, b) in test_cases {
             let big_a = Bignum::from(a);
             let big_b = Bignum::from(b);
 
@@ -635,11 +676,16 @@ mod tests {
 
     #[test]
     fn shift_right() {
-        for (a, b) in NUM_PAIRS2 {
+        let base = 0xabcedef;
+        let mut test_cases: Vec<(u128, usize)> = vec![];
+        for i in 0..127 {
+            test_cases.push((base, i));
+        }
+
+        for (a, b) in test_cases {
             let big_a = Bignum::from(a);
 
-            let (tmp, _) = a.overflowing_shr(b as u32);
-            let res = Bignum::from(tmp);
+            let res = Bignum::from(a >> b);
             let res_big = big_a >> b;
 
             assert_eq!(res, res_big);
@@ -648,11 +694,16 @@ mod tests {
 
     #[test]
     fn shift_left() {
-        for (a, b) in NUM_PAIRS2 {
+        let base = 0xabcedef;
+        let mut test_cases: Vec<(u128, usize)> = vec![];
+        for i in 0..95 {
+            test_cases.push((base, i));
+        }
+
+        for (a, b) in test_cases {
             let big_a = Bignum::from(a);
 
-            let tmp = a << b as u32;
-            let res = Bignum::from(tmp);
+            let res = Bignum::from(a << b);
             let res_big = big_a << b;
 
             assert_eq!(res, res_big);
@@ -661,11 +712,17 @@ mod tests {
 
     #[test]
     fn get_bit() {
-        for (a, b) in NUM_PAIRS2 {
+        let base = 0xabcedef;
+        let mut test_cases: Vec<(u128, usize)> = vec![];
+        for i in 0..127 {
+            test_cases.push((base, i));
+        }
+
+        for (a, b) in test_cases {
             let big_a = Bignum::from(a);
+            let res_big = big_a.get_bit(b);
 
             let res = (a >> b) & 1 == 1;
-            let res_big = big_a.get_bit(b);
 
             assert_eq!(res, res_big);
         }
@@ -673,7 +730,13 @@ mod tests {
 
     #[test]
     fn set_bit() {
-        for (mut a, b) in NUM_PAIRS2 {
+        let base = 0xabcedef;
+        let mut test_cases: Vec<(u128, usize)> = vec![];
+        for i in 0..127 {
+            test_cases.push((base, i));
+        }
+
+        for (mut a, b) in test_cases {
             let mut big_a = Bignum::from(a);
             big_a.set_bit(b);
 
@@ -686,7 +749,13 @@ mod tests {
 
     #[test]
     fn unset_bit() {
-        for (mut a, b) in NUM_PAIRS2 {
+        let base = 0xabcedef;
+        let mut test_cases: Vec<(u128, usize)> = vec![];
+        for i in 0..127 {
+            test_cases.push((base, i));
+        }
+
+        for (mut a, b) in test_cases {
             let mut big_a = Bignum::from(a);
             big_a.unset_bit(b);
 
@@ -699,7 +768,13 @@ mod tests {
 
     #[test]
     fn toggle_bit() {
-        for (mut a, b) in NUM_PAIRS2 {
+        let base = 0xabcedef;
+        let mut test_cases: Vec<(u128, usize)> = vec![];
+        for i in 0..127 {
+            test_cases.push((base, i));
+        }
+
+        for (mut a, b) in test_cases {
             let mut big_a = Bignum::from(a);
             big_a.toggle_bit(b);
 
