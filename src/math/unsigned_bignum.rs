@@ -673,9 +673,28 @@ mod tests {
             let big_a = UnsignedBignum::from(a);
             let big_b = UnsignedBignum::from(b);
 
+            let res = a.eq(&b);
+            let res_big = big_a.eq(&big_b);
+            assert_eq!(res, res_big);
+
+            let res = a.lt(&b);
+            let res_big = big_a.lt(&big_b);
+            assert_eq!(res, res_big);
+
+            let res = a.le(&b);
+            let res_big = big_a.le(&big_b);
+            assert_eq!(res, res_big);
+
+            let res = a.gt(&b);
+            let res_big = big_a.gt(&big_b);
+            assert_eq!(res, res_big);
+
+            let res = a.ge(&b);
+            let res_big = big_a.ge(&big_b);
+            assert_eq!(res, res_big);
+
             let res = a.partial_cmp(&b);
             let res_big = big_a.partial_cmp(&big_b);
-
             assert_eq!(res, res_big);
         }
     }
