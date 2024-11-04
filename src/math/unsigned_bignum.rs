@@ -259,7 +259,7 @@ impl UnsignedBignum {
     }
 
     pub fn sub_ref(&self, rhs: &Self) -> Self {
-        if self.len() < rhs.len() {
+        if self < rhs {
             panic!(
                 "Result of subtraction would be negative.\nlhs: {}\nrhs: {}",
                 self.to_hex_string(),
