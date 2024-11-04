@@ -3,11 +3,11 @@ use std::io::Read;
 ///
 /// 0xabcdef00 -> Bignum([0x00, 0xef, 0xcd, 0xab])
 #[derive(Debug, Clone)]
-pub struct Bignum {
+pub struct UnsignedBignum {
     digits: Vec<u8>,
 }
 
-impl Bignum {
+impl UnsignedBignum {
     pub fn new() -> Self {
         Self { digits: vec![0u8] }
     }
@@ -73,7 +73,7 @@ impl Bignum {
             vec.push(b);
         }
 
-        let mut b = Bignum::from_little_endian(&vec);
+        let mut b = UnsignedBignum::from_little_endian(&vec);
         b.strip();
 
         Ok(b)
@@ -136,8 +136,8 @@ impl Bignum {
     /// Integer division (unsigned) with remainder (https://en.wikipedia.org/wiki/Division_algorithm#Integer_division_(unsigned)_with_remainder)
     /// returns (quotient, remainder)
     pub fn div_with_remainder(&self, rhs: &Self) -> (Self, Self) {
-        let mut quotient = Bignum::new();
-        let mut remainder = Bignum::new();
+        let mut quotient = Self::new();
+        let mut remainder = Self::new();
 
         let (n_len, n) = (self.digits.len() * 8, self);
 
@@ -220,12 +220,12 @@ impl Bignum {
         let mut base = self;
         let mut exp = exponent;
 
-        let mut t = Bignum::from(1);
+        let mut t = Self::from(1);
         while !exp.is_zero() {
             if !exp.is_even() {
-                (_, t) = Bignum::mul_ref(&t, &base).div_with_remainder(&modulus);
+                (_, t) = Self::mul_ref(&t, &base).div_with_remainder(&modulus);
             }
-            (_, base) = Bignum::mul_ref(&base, &base).div_with_remainder(&modulus);
+            (_, base) = Self::mul_ref(&base, &base).div_with_remainder(&modulus);
             exp = exp >> 1;
         }
 
@@ -305,13 +305,13 @@ impl Bignum {
     }
 }
 
-impl Default for Bignum {
+impl Default for UnsignedBignum {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl From<u128> for Bignum {
+impl From<u128> for UnsignedBignum {
     fn from(value: u128) -> Self {
         let mut res = Self {
             digits: vec![
@@ -338,7 +338,7 @@ impl From<u128> for Bignum {
     }
 }
 
-impl PartialEq for Bignum {
+impl PartialEq for UnsignedBignum {
     fn eq(&self, other: &Self) -> bool {
         if self.digits.len() != other.digits.len() {
             return false;
@@ -354,7 +354,7 @@ impl PartialEq for Bignum {
     }
 }
 
-impl PartialOrd for Bignum {
+impl PartialOrd for UnsignedBignum {
     fn lt(&self, other: &Self) -> bool {
         if self.digits.len() != other.digits.len() {
             return self.digits.len().lt(&other.digits.len());
@@ -426,7 +426,7 @@ impl PartialOrd for Bignum {
     }
 }
 
-impl std::ops::Shr<usize> for Bignum {
+impl std::ops::Shr<usize> for UnsignedBignum {
     type Output = Self;
 
     fn shr(mut self, rhs: usize) -> Self::Output {
@@ -456,7 +456,7 @@ impl std::ops::Shr<usize> for Bignum {
     }
 }
 
-impl std::ops::Shl<usize> for Bignum {
+impl std::ops::Shl<usize> for UnsignedBignum {
     type Output = Self;
 
     fn shl(mut self, rhs: usize) -> Self::Output {
@@ -487,7 +487,7 @@ impl std::ops::Shl<usize> for Bignum {
     }
 }
 
-impl std::ops::Add for Bignum {
+impl std::ops::Add for UnsignedBignum {
     type Output = Self;
 
     fn add(self, rhs: Self) -> Self::Output {
@@ -495,7 +495,7 @@ impl std::ops::Add for Bignum {
     }
 }
 
-impl std::ops::Sub for Bignum {
+impl std::ops::Sub for UnsignedBignum {
     type Output = Self;
 
     fn sub(self, rhs: Self) -> Self::Output {
@@ -504,15 +504,15 @@ impl std::ops::Sub for Bignum {
 }
 
 // Long Multiplication (https://en.wikipedia.org/wiki/Multiplication_algorithm#Long_multiplication)
-impl std::ops::Mul for Bignum {
+impl std::ops::Mul for UnsignedBignum {
     type Output = Self;
 
     fn mul(self, rhs: Self) -> Self::Output {
-        Bignum::mul_ref(&self, &rhs)
+        Self::mul_ref(&self, &rhs)
     }
 }
 
-impl std::ops::Div for Bignum {
+impl std::ops::Div for UnsignedBignum {
     type Output = Self;
 
     fn div(self, rhs: Self) -> Self::Output {
@@ -535,10 +535,10 @@ mod tests {
         }
 
         for (a, b) in test_cases {
-            let big_a = Bignum::from(a);
-            let big_b = Bignum::from(b);
+            let big_a = UnsignedBignum::from(a);
+            let big_b = UnsignedBignum::from(b);
 
-            let res = Bignum::from(a + b);
+            let res = UnsignedBignum::from(a + b);
             let res_big = big_a + big_b;
 
             assert_eq!(res, res_big);
@@ -560,10 +560,10 @@ mod tests {
                 false => (b, a),
             };
 
-            let big_a = Bignum::from(a);
-            let big_b = Bignum::from(b);
+            let big_a = UnsignedBignum::from(a);
+            let big_b = UnsignedBignum::from(b);
 
-            let res = Bignum::from(a - b);
+            let res = UnsignedBignum::from(a - b);
             let res_big = big_a - big_b;
 
             assert_eq!(res, res_big);
@@ -586,8 +586,8 @@ mod tests {
                 true => (b, a),
             };
 
-            let big_a = Bignum::from(a);
-            let big_b = Bignum::from(b);
+            let big_a = UnsignedBignum::from(a);
+            let big_b = UnsignedBignum::from(b);
 
             // should panic here
             let _res_big = big_a - big_b;
@@ -604,10 +604,10 @@ mod tests {
         }
 
         for (a, b) in test_cases {
-            let big_a = Bignum::from(a);
-            let big_b = Bignum::from(b);
+            let big_a = UnsignedBignum::from(a);
+            let big_b = UnsignedBignum::from(b);
 
-            let res = Bignum::from(a * b);
+            let res = UnsignedBignum::from(a * b);
             let res_big = big_a * big_b;
 
             assert_eq!(res, res_big);
@@ -628,12 +628,12 @@ mod tests {
                 continue;
             }
 
-            let big_a = Bignum::from(a);
-            let big_b = Bignum::from(b as u128);
+            let big_a = UnsignedBignum::from(a);
+            let big_b = UnsignedBignum::from(b as u128);
 
-            let (big_q, big_r) = Bignum::div_with_remainder(&big_a, &big_b);
-            let q = Bignum::from(a / b as u128);
-            let r = Bignum::from(a % b as u128);
+            let (big_q, big_r) = UnsignedBignum::div_with_remainder(&big_a, &big_b);
+            let q = UnsignedBignum::from(a / b as u128);
+            let r = UnsignedBignum::from(a % b as u128);
 
             assert_eq!(big_q, q);
             assert_eq!(big_r, r);
@@ -650,10 +650,10 @@ mod tests {
         }
 
         for (a, b) in test_cases {
-            let big_a = Bignum::from(a);
-            let big_b = Bignum::from(b);
+            let big_a = UnsignedBignum::from(a);
+            let big_b = UnsignedBignum::from(b);
 
-            let res = Bignum::from(a.pow(b as u32));
+            let res = UnsignedBignum::from(a.pow(b as u32));
             let res_big = big_a.pow(big_b);
 
             assert_eq!(res, res_big);
@@ -670,8 +670,8 @@ mod tests {
         }
 
         for (a, b) in test_cases {
-            let big_a = Bignum::from(a);
-            let big_b = Bignum::from(b);
+            let big_a = UnsignedBignum::from(a);
+            let big_b = UnsignedBignum::from(b);
 
             let res = a.partial_cmp(&b);
             let res_big = big_a.partial_cmp(&big_b);
@@ -689,9 +689,9 @@ mod tests {
         }
 
         for (a, b) in test_cases {
-            let big_a = Bignum::from(a);
+            let big_a = UnsignedBignum::from(a);
 
-            let res = Bignum::from(a >> b);
+            let res = UnsignedBignum::from(a >> b);
             let res_big = big_a >> b;
 
             assert_eq!(res, res_big);
@@ -707,9 +707,9 @@ mod tests {
         }
 
         for (a, b) in test_cases {
-            let big_a = Bignum::from(a);
+            let big_a = UnsignedBignum::from(a);
 
-            let res = Bignum::from(a << b);
+            let res = UnsignedBignum::from(a << b);
             let res_big = big_a << b;
 
             assert_eq!(res, res_big);
@@ -725,7 +725,7 @@ mod tests {
         }
 
         for (a, b) in test_cases {
-            let big_a = Bignum::from(a);
+            let big_a = UnsignedBignum::from(a);
             let res_big = big_a.get_bit(b);
 
             let res = (a >> b) & 1 == 1;
@@ -743,11 +743,11 @@ mod tests {
         }
 
         for (mut a, b) in test_cases {
-            let mut big_a = Bignum::from(a);
+            let mut big_a = UnsignedBignum::from(a);
             big_a.set_bit(b);
 
             a |= 1 << b;
-            let a = Bignum::from(a);
+            let a = UnsignedBignum::from(a);
 
             assert_eq!(a, big_a);
         }
@@ -762,11 +762,11 @@ mod tests {
         }
 
         for (mut a, b) in test_cases {
-            let mut big_a = Bignum::from(a);
+            let mut big_a = UnsignedBignum::from(a);
             big_a.unset_bit(b);
 
             a &= !(1 << b);
-            let a = Bignum::from(a);
+            let a = UnsignedBignum::from(a);
 
             assert_eq!(a, big_a);
         }
@@ -781,11 +781,11 @@ mod tests {
         }
 
         for (mut a, b) in test_cases {
-            let mut big_a = Bignum::from(a);
+            let mut big_a = UnsignedBignum::from(a);
             big_a.toggle_bit(b);
 
             a ^= 1 << b;
-            let a = Bignum::from(a);
+            let a = UnsignedBignum::from(a);
 
             assert_eq!(a, big_a);
         }
@@ -800,7 +800,7 @@ mod tests {
             "0x0",
             "0x1",
         ] {
-            let bn = Bignum::try_from_hex_string(s).unwrap();
+            let bn = UnsignedBignum::try_from_hex_string(s).unwrap();
 
             assert_eq!(s, bn.to_hex_string());
         }

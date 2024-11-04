@@ -1,6 +1,6 @@
-use crate::math::bignum::Bignum;
+use crate::math::unsigned_bignum::UnsignedBignum;
 
-pub fn gcd(a: Bignum, b: Bignum) -> Bignum {
+pub fn gcd(a: UnsignedBignum, b: UnsignedBignum) -> UnsignedBignum {
     let mut a = a;
     let mut b = b;
 
@@ -27,9 +27,9 @@ mod tests {
             (0xaabbcc, 0xddeeff, 0x99),
             (0xaabb, 0xddee, 0x33),
         ] {
-            let a = Bignum::from(a);
-            let b = Bignum::from(b);
-            let c = Bignum::from(c);
+            let a = UnsignedBignum::from(a);
+            let b = UnsignedBignum::from(b);
+            let c = UnsignedBignum::from(c);
 
             let res = gcd(a, b);
 
