@@ -525,16 +525,20 @@ impl std::ops::Div for UnsignedBignum {
 mod tests {
     use super::*;
 
-    #[test]
-    fn addition() {
-        let mut test_cases: Vec<(u128, u128)> = vec![];
+    fn get_test_cases() -> Vec<(u128, u128)> {
+        let mut test_cases: Vec<(u128, u128)> = vec![(0, 0xa), (0xa, 0), (0, 0)];
         for a in (0..0xabcedef).step_by(300_000) {
             for b in (0..0xabcedef).step_by(300_000) {
                 test_cases.push((a, b));
             }
         }
 
-        for (a, b) in test_cases {
+        test_cases
+    }
+
+    #[test]
+    fn addition() {
+        for (a, b) in get_test_cases() {
             let big_a = UnsignedBignum::from(a);
             let big_b = UnsignedBignum::from(b);
 
@@ -547,14 +551,7 @@ mod tests {
 
     #[test]
     fn subtraction() {
-        let mut test_cases: Vec<(u128, u128)> = vec![];
-        for a in (0..0xabcedef).step_by(300_000) {
-            for b in (0..0xabcedef).step_by(300_000) {
-                test_cases.push((a, b));
-            }
-        }
-
-        for (a, b) in test_cases {
+        for (a, b) in get_test_cases() {
             let (a, b) = match a >= b {
                 true => (a, b),
                 false => (b, a),
@@ -573,17 +570,11 @@ mod tests {
     #[test]
     #[should_panic]
     fn subtraction_panic() {
-        let mut test_cases: Vec<(u128, u128)> = vec![];
-        for a in (0..0xabcedef).step_by(300_000) {
-            for b in (0..0xabcedef).step_by(300_000) {
-                test_cases.push((a, b));
-            }
-        }
-
-        for (a, b) in test_cases {
-            let (a, b) = match a >= b {
+        for (a, b) in get_test_cases() {
+            let (a, b) = match a > b {
                 false => (a, b),
                 true => (b, a),
+                _ => continue,
             };
 
             let big_a = UnsignedBignum::from(a);
@@ -596,14 +587,7 @@ mod tests {
 
     #[test]
     fn multiplication() {
-        let mut test_cases: Vec<(u128, u128)> = vec![];
-        for a in (0..0xabcedef).step_by(300_000) {
-            for b in (0..0xabcedef).step_by(300_000) {
-                test_cases.push((a, b));
-            }
-        }
-
-        for (a, b) in test_cases {
+        for (a, b) in get_test_cases() {
             let big_a = UnsignedBignum::from(a);
             let big_b = UnsignedBignum::from(b);
 
@@ -616,14 +600,7 @@ mod tests {
 
     #[test]
     fn division_with_remainder() {
-        let mut test_cases: Vec<(u128, u128)> = vec![];
-        for a in (0..0xabcedef).step_by(300_000) {
-            for b in (0..0xabcedef).step_by(300_000) {
-                test_cases.push((a, b));
-            }
-        }
-
-        for (a, b) in test_cases {
+        for (a, b) in get_test_cases() {
             if b == 0 {
                 continue;
             }
@@ -642,7 +619,7 @@ mod tests {
 
     #[test]
     fn pow() {
-        let mut test_cases = vec![];
+        let mut test_cases: Vec<(u128, u128)> = vec![(0, 0xa), (0xa, 0), (0, 0)];
         for a in 0..20 {
             for b in 0..20 {
                 test_cases.push((a, b));
@@ -662,14 +639,7 @@ mod tests {
 
     #[test]
     fn comparison() {
-        let mut test_cases: Vec<(u128, u128)> = vec![];
-        for a in (0..0xabcedef).step_by(300_000) {
-            for b in (0..0xabcedef).step_by(300_000) {
-                test_cases.push((a, b));
-            }
-        }
-
-        for (a, b) in test_cases {
+        for (a, b) in get_test_cases() {
             let big_a = UnsignedBignum::from(a);
             let big_b = UnsignedBignum::from(b);
 
