@@ -162,6 +162,10 @@ impl UnsignedBignum {
         self.digits.len() == 1 && self.digits[0] == 0
     }
 
+    pub fn is_empty(&self) -> bool {
+        self.is_zero()
+    }
+
     pub fn is_even(&self) -> bool {
         self.digits[0] % 2 == 0
     }
@@ -188,7 +192,7 @@ impl UnsignedBignum {
             (n, _) = n.div_with_remainder(&two);
         }
 
-        return x * y;
+        x * y
     }
 
     pub fn mul_ref(&self, other: &Self) -> Self {
@@ -223,13 +227,13 @@ impl UnsignedBignum {
         let mut t = Self::from(1);
         while !exp.is_zero() {
             if !exp.is_even() {
-                (_, t) = Self::mul_ref(&t, &base).div_with_remainder(&modulus);
+                (_, t) = Self::mul_ref(&t, &base).div_with_remainder(modulus);
             }
-            (_, base) = Self::mul_ref(&base, &base).div_with_remainder(&modulus);
+            (_, base) = Self::mul_ref(&base, &base).div_with_remainder(modulus);
             exp = exp >> 1;
         }
 
-        let (_, r) = t.div_with_remainder(&modulus);
+        let (_, r) = t.div_with_remainder(modulus);
         r
     }
 
@@ -241,14 +245,14 @@ impl UnsignedBignum {
         let mut vec = vec![0u8; long.len()];
 
         let mut carry = 0;
-        for i in 0..long.len() {
+        for (i, e) in vec.iter_mut().enumerate() {
             let mut tmp = long.digits[i] as u16 + carry;
             if i < short.len() {
                 tmp += short.digits[i] as u16;
             }
             carry = tmp >> 8;
 
-            vec[i] = tmp as u8;
+            *e = tmp as u8;
         }
 
         if carry != 0 {
@@ -274,7 +278,7 @@ impl UnsignedBignum {
         let mut vec = vec![0u8; long.len()];
 
         let mut carry = 0;
-        for i in 0..long.len() {
+        for (i, e) in vec.iter_mut().enumerate() {
             let (mut sum, mut tmp_carry) = long.digits[i].overflowing_sub(carry);
             carry = tmp_carry as u8;
 
@@ -283,7 +287,7 @@ impl UnsignedBignum {
                 carry += tmp_carry as u8;
             }
 
-            vec[i] = sum;
+            *e = sum;
         }
 
         let mut res = Self { digits: vec };
@@ -294,8 +298,8 @@ impl UnsignedBignum {
 
     /// Generate random number with `n` bytes
     pub fn rand(n: usize) -> Self {
-        if n <= 0 {
-            panic!("Can't create Bignum with 0 bytes. n has to be >= 0");
+        if n == 0 {
+            panic!("Can't create Bignum with 0 bytes. n has to be > 0");
         }
         let mut f = std::fs::File::open("/dev/urandom").expect("Can't open file /dev/urandom");
         let mut buf = vec![0; n];
@@ -574,7 +578,6 @@ mod tests {
             let (a, b) = match a > b {
                 false => (a, b),
                 true => (b, a),
-                _ => continue,
             };
 
             let big_a = UnsignedBignum::from(a);

@@ -211,6 +211,10 @@ impl SignedBignum {
         self.digits.len() == 1 && self.digits[0] == 0
     }
 
+    pub fn is_empty(&self) -> bool {
+        self.is_zero()
+    }
+
     pub fn is_even(&self) -> bool {
         self.digits[0] % 2 == 0
     }
@@ -237,7 +241,7 @@ impl SignedBignum {
             (n, _) = n.div_with_remainder(&two);
         }
 
-        return x * y;
+        x * y
     }
 
     pub fn mul_ref(&self, other: &Self) -> Self {
@@ -280,13 +284,13 @@ impl SignedBignum {
         let mut t = Self::from(1);
         while !exp.is_zero() {
             if !exp.is_even() {
-                (_, t) = Self::mul_ref(&t, &base).div_with_remainder(&modulus);
+                (_, t) = Self::mul_ref(&t, &base).div_with_remainder(modulus);
             }
-            (_, base) = Self::mul_ref(&base, &base).div_with_remainder(&modulus);
+            (_, base) = Self::mul_ref(&base, &base).div_with_remainder(modulus);
             exp = exp >> 1;
         }
 
-        let (_, r) = t.div_with_remainder(&modulus);
+        let (_, r) = t.div_with_remainder(modulus);
         r
     }
 
@@ -305,31 +309,31 @@ impl SignedBignum {
     }
 
     pub fn add_ref(&self, rhs: &Self) -> Self {
-        return match (self.sign, rhs.sign) {
+        match (self.sign, rhs.sign) {
             // (x)  +  (y) => x + y
             (false, false) => Self::add_ref_internal(self, rhs),
             // (-x) + (y)  => y - x
             (true, false) => {
                 if self.eq(rhs) {
-                    return Self::new();
+                    Self::new()
                 } else if rhs.gt_internal(self) {
-                    return Self::sub_ref_internal(rhs, self);
+                    Self::sub_ref_internal(rhs, self)
                 } else {
                     let mut tmp = Self::sub_ref_internal(self, rhs);
                     tmp.sign = true;
-                    return tmp;
+                    tmp
                 }
             }
             // (x)  + (-y) => x - y
             (false, true) => {
                 if self.eq(rhs) {
-                    return Self::new();
+                    Self::new()
                 } else if self.gt_internal(rhs) {
-                    return Self::sub_ref_internal(self, rhs);
+                    Self::sub_ref_internal(self, rhs)
                 } else {
                     let mut tmp = Self::sub_ref_internal(rhs, self);
                     tmp.sign = true;
-                    return tmp;
+                    tmp
                 }
             }
             // (-x) + (-y) => - (x + y)
@@ -338,7 +342,7 @@ impl SignedBignum {
                 tmp.sign = true;
                 tmp
             }
-        };
+        }
     }
 
     fn add_ref_internal(&self, rhs: &Self) -> Self {
@@ -349,14 +353,14 @@ impl SignedBignum {
         let mut vec = vec![0u8; long.len()];
 
         let mut carry = 0;
-        for i in 0..long.len() {
+        for (i, e) in vec.iter_mut().enumerate() {
             let mut tmp = long.digits[i] as u16 + carry;
             if i < short.len() {
                 tmp += short.digits[i] as u16;
             }
             carry = tmp >> 8;
 
-            vec[i] = tmp as u8;
+            *e = tmp as u8;
         }
 
         if carry != 0 {
@@ -370,17 +374,17 @@ impl SignedBignum {
     }
 
     pub fn sub_ref(&self, rhs: &Self) -> Self {
-        return match (self.sign, rhs.sign) {
+        match (self.sign, rhs.sign) {
             // (x)  -  (y) => x - y
             (false, false) => {
                 if self.eq(rhs) {
-                    return Self::new();
+                    Self::new()
                 } else if self.gt_internal(rhs) {
-                    return Self::sub_ref_internal(self, rhs);
+                    Self::sub_ref_internal(self, rhs)
                 } else {
                     let mut tmp = Self::sub_ref_internal(rhs, self);
                     tmp.sign = true;
-                    return tmp;
+                    tmp
                 }
             }
             // (-x) - (y)  => - (x + y)
@@ -394,16 +398,16 @@ impl SignedBignum {
             // (-x) - (-y) => y - x
             (true, true) => {
                 if self.eq(rhs) {
-                    return Self::new();
+                    Self::new()
                 } else if rhs.gt_internal(self) {
-                    return Self::sub_ref_internal(rhs, self);
+                    Self::sub_ref_internal(rhs, self)
                 } else {
                     let mut tmp = Self::sub_ref_internal(self, rhs);
                     tmp.sign = true;
-                    return tmp;
+                    tmp
                 }
             }
-        };
+        }
     }
 
     pub fn sub_ref_internal(&self, rhs: &Self) -> Self {
@@ -411,7 +415,7 @@ impl SignedBignum {
         let mut vec = vec![0u8; long.len()];
 
         let mut carry = 0;
-        for i in 0..long.len() {
+        for (i, e) in vec.iter_mut().enumerate() {
             let (mut sum, mut tmp_carry) = long.digits[i].overflowing_sub(carry);
             carry = tmp_carry as u8;
 
@@ -420,7 +424,7 @@ impl SignedBignum {
                 carry += tmp_carry as u8;
             }
 
-            vec[i] = sum;
+            *e = sum;
         }
 
         let mut res = Self {
@@ -434,8 +438,8 @@ impl SignedBignum {
 
     /// Generate random number with `n` bytes
     pub fn rand(n: usize) -> Self {
-        if n <= 0 {
-            panic!("Can't create Bignum with 0 bytes. n has to be >= 0");
+        if n == 0 {
+            panic!("Can't create Bignum with 0 bytes. n has to be > 0");
         }
         let mut f = std::fs::File::open("/dev/urandom").expect("Can't open file /dev/urandom");
         let mut buf = vec![0; n];
@@ -456,7 +460,7 @@ impl Default for SignedBignum {
 
 impl From<i32> for SignedBignum {
     fn from(value: i32) -> Self {
-        let mut bn = Self::from(value.abs() as u128);
+        let mut bn = Self::from(value.unsigned_abs() as u128);
         bn.sign = value < 0;
         bn
     }
@@ -464,7 +468,7 @@ impl From<i32> for SignedBignum {
 
 impl From<i128> for SignedBignum {
     fn from(value: i128) -> Self {
-        let mut bn = Self::from(value.abs() as u128);
+        let mut bn = Self::from(value.unsigned_abs());
         bn.sign = value < 0;
         bn
     }

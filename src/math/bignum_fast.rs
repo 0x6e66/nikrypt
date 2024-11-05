@@ -12,11 +12,11 @@ fn check_byte_length(value: &[u8]) -> bool {
 
 fn calc_pos(length: usize) -> usize {
     if length <= 2 {
-        return 0;
+        0
     } else if length % 2 == 0 {
-        return length / 2 - 1;
+        length / 2 - 1
     } else {
-        return length / 2;
+        length / 2
     }
 }
 
@@ -34,6 +34,10 @@ impl BignumFast {
 
     pub fn is_zero(&self) -> bool {
         self.pos == 0 && self.digits[0] == 0
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.is_zero()
     }
 
     pub fn is_even(&self) -> bool {
@@ -92,7 +96,7 @@ impl BignumFast {
 
     pub fn try_from_hex_string(s: &str) -> Result<Self, std::num::ParseIntError> {
         let s = s.trim_start_matches("0x");
-        let s = s.trim_start_matches("0");
+        let s = s.trim_start_matches('0');
 
         let mut bignum = Self::new();
         let len = s.len();
@@ -330,13 +334,19 @@ impl BignumFast {
         let mut t = BignumFast::from(1);
         while !exp.is_zero() {
             if !exp.is_even() {
-                (_, t) = BignumFast::mul_ref(&t, &base).div_with_remainder(&modulus);
+                (_, t) = BignumFast::mul_ref(&t, &base).div_with_remainder(modulus);
             }
-            (_, base) = BignumFast::mul_ref(&base, &base).div_with_remainder(&modulus);
+            (_, base) = BignumFast::mul_ref(&base, &base).div_with_remainder(modulus);
             exp = exp >> 1;
         }
-        let (_, r) = t.div_with_remainder(&modulus);
+        let (_, r) = t.div_with_remainder(modulus);
         r
+    }
+}
+
+impl Default for BignumFast {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
@@ -502,7 +512,7 @@ impl std::ops::Shl<usize> for BignumFast {
 
         if bytes_shift > 0 {
             for i in (bytes_shift..self.len() + bytes_shift).rev() {
-                self.digits[i] = self.digits[i - bytes_shift as usize];
+                self.digits[i] = self.digits[i - bytes_shift];
             }
 
             for i in 0..bytes_shift {
