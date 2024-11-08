@@ -288,6 +288,9 @@ impl BignumFast {
                 carry = tmp / base;
                 tmp %= base;
                 bignum.digits[a_i + b_i] = tmp as u8;
+                if tmp != 0 {
+                    pos_last_non_zero = a_i + b_i;
+                }
             }
             if carry != 0 {
                 pos_last_non_zero = b_i + p;
@@ -582,25 +585,29 @@ mod tests {
             }
         }
 
-        assert_eq!(bn.pos, pos_last_non_zero);
+        assert_eq!(pos_last_non_zero, bn.pos);
     }
 
-    const NUM_PAIRS: [(u128, u128); 7] = [
-        (0xaabb0000, 0x0000ccdd),
-        (0xffff, 0xffff),
-        (0x0, 0x0),
-        (0x0, 0x1),
-        (0xabcedefabcdef, 0xabcedefabcdef),
-        (0xabcedef, 0xabcedefabcdef),
-        (0xabcedefabcdef, 0xabcedef),
-    ];
+    fn get_arithmatik_test_cases() -> Vec<(u128, u128)> {
+        let mut test_cases: Vec<(u128, u128)> = vec![(0, 0xa), (0xa, 0), (0, 0)];
+        for a in (0..0xabcedef).step_by(5_000_000) {
+            for b in (0..0xabcedef).step_by(5_000_000) {
+                test_cases.push((a, b));
+            }
+        }
 
-    const NUM_PAIRS2: [(u128, usize); 4] = [
-        (0xffff, 12),
-        (0xabcedefabcdef, 5),
-        (0xffffff, 10),
-        (0xff, 15),
-    ];
+        test_cases
+    }
+
+    fn get_bit_manipulation_test_cases() -> Vec<(u128, usize)> {
+        let base = 0xabcedef;
+        let mut test_cases: Vec<(u128, usize)> = vec![];
+        for i in 0..127 {
+            test_cases.push((base, i));
+        }
+
+        test_cases
+    }
 
     #[test]
     fn hex_string() {
@@ -626,7 +633,7 @@ mod tests {
 
     #[test]
     fn hex_string_2() {
-        for (a, b) in NUM_PAIRS {
+        for (a, b) in get_arithmatik_test_cases() {
             let s = format!("{:#02x}", a);
 
             let bignum = BignumFast::try_from_hex_string(&s).unwrap();
@@ -725,7 +732,7 @@ mod tests {
 
     #[test]
     fn from_u128() {
-        for (a, b) in NUM_PAIRS {
+        for (a, b) in get_arithmatik_test_cases() {
             let bignum = BignumFast::from(a);
             check_pos(&bignum);
             let s = format!("{:#02x}", a);
@@ -740,20 +747,20 @@ mod tests {
 
     #[test]
     fn shift_right() {
-        let base = 0xabcdef;
-        let mut test_cases = vec![];
+        let base = 0xabcedef;
+        let mut test_cases: Vec<(u128, usize)> = vec![];
         for i in 0..127 {
-            test_cases.push((base, i as usize));
+            test_cases.push((base, i));
         }
 
         for (a, b) in test_cases {
             let big_a = BignumFast::from(a);
             check_pos(&big_a);
 
-            let tmp = a >> b;
-            let res = BignumFast::from(tmp);
+            let res = BignumFast::from(a >> b);
             check_pos(&res);
             let res_big = big_a >> b;
+            check_pos(&res_big);
 
             assert_eq!(res, res_big);
         }
@@ -761,21 +768,20 @@ mod tests {
 
     #[test]
     fn shift_left() {
-        let base = 0x1;
-        let mut test_cases = vec![];
-
-        for i in 0..127 {
-            test_cases.push((base, i as usize));
+        let base = 0xabcedef;
+        let mut test_cases: Vec<(u128, usize)> = vec![];
+        for i in 0..95 {
+            test_cases.push((base, i));
         }
 
         for (a, b) in test_cases {
             let big_a = BignumFast::from(a);
             check_pos(&big_a);
 
-            let tmp = a << b as u32;
-            let res = BignumFast::from(tmp);
+            let res = BignumFast::from(a << b);
             check_pos(&res);
             let res_big = big_a << b;
+            check_pos(&res_big);
 
             assert_eq!(res, res_big);
         }
@@ -783,7 +789,7 @@ mod tests {
 
     #[test]
     fn addition() {
-        for (a, b) in NUM_PAIRS {
+        for (a, b) in get_arithmatik_test_cases() {
             let big_a = BignumFast::from(a);
             check_pos(&big_a);
             let big_b = BignumFast::from(b);
@@ -792,6 +798,7 @@ mod tests {
             let res = BignumFast::from(a + b);
             check_pos(&res);
             let res_big = big_a + big_b;
+            check_pos(&res_big);
 
             assert_eq!(res, res_big);
         }
@@ -799,13 +806,7 @@ mod tests {
 
     #[test]
     fn subtraction() {
-        let base = 0xabcd;
-        let mut test_caes = vec![];
-        for i in 0..1280 {
-            test_caes.push((base, i));
-        }
-
-        for (a, b) in test_caes {
+        for (a, b) in get_arithmatik_test_cases() {
             let (a, b) = match a >= b {
                 true => (a, b),
                 false => (b, a),
@@ -819,6 +820,7 @@ mod tests {
             let res = BignumFast::from(a - b);
             check_pos(&res);
             let res_big = big_a - big_b;
+            check_pos(&res_big);
 
             assert_eq!(res, res_big);
         }
@@ -827,7 +829,7 @@ mod tests {
     #[test]
     #[should_panic]
     fn subtraction_panic() {
-        for (a, b) in NUM_PAIRS {
+        for (a, b) in get_arithmatik_test_cases() {
             let (a, b) = match a >= b {
                 false => (a, b),
                 true => (b, a),
@@ -844,7 +846,7 @@ mod tests {
 
     #[test]
     fn multiplication() {
-        for (a, b) in NUM_PAIRS {
+        for (a, b) in get_arithmatik_test_cases() {
             let big_a = BignumFast::from(a);
             check_pos(&big_a);
             let big_b = BignumFast::from(b);
@@ -853,6 +855,7 @@ mod tests {
             let res = BignumFast::from(a * b);
             check_pos(&res);
             let res_big = big_a * big_b;
+            check_pos(&res_big);
 
             assert_eq!(res, res_big);
         }
@@ -860,11 +863,10 @@ mod tests {
 
     #[test]
     fn division_with_remainder() {
-        for (a, b) in [
-            (0x12341234, 1234),
-            (0xabcdef, 123),
-            (0xabcdabcdbdb123, 3001),
-        ] {
+        for (a, b) in get_arithmatik_test_cases() {
+            if b == 0 {
+                continue;
+            }
             let big_a = BignumFast::from(a);
             check_pos(&big_a);
             let big_b = BignumFast::from(b as u128);
@@ -873,8 +875,8 @@ mod tests {
             let (big_q, big_r) = BignumFast::div_with_remainder(&big_a, &big_b);
             check_pos(&big_q);
             check_pos(&big_r);
-            let q = BignumFast::from(a / b as u128);
-            let r = BignumFast::from(a % b as u128);
+            let q = BignumFast::from(a / b);
+            let r = BignumFast::from(a % b);
             check_pos(&q);
             check_pos(&r);
 
@@ -885,23 +887,41 @@ mod tests {
 
     #[test]
     fn comparison() {
-        for (a, b) in NUM_PAIRS {
+        for (a, b) in get_arithmatik_test_cases() {
             let big_a = BignumFast::from(a);
-            check_pos(&big_a);
             let big_b = BignumFast::from(b);
+            check_pos(&big_a);
             check_pos(&big_b);
+
+            let res = a.eq(&b);
+            let res_big = big_a.eq(&big_b);
+            assert_eq!(res, res_big);
+
+            let res = a.lt(&b);
+            let res_big = big_a.lt(&big_b);
+            assert_eq!(res, res_big);
+
+            let res = a.le(&b);
+            let res_big = big_a.le(&big_b);
+            assert_eq!(res, res_big);
+
+            let res = a.gt(&b);
+            let res_big = big_a.gt(&big_b);
+            assert_eq!(res, res_big);
+
+            let res = a.ge(&b);
+            let res_big = big_a.ge(&big_b);
+            assert_eq!(res, res_big);
 
             let res = a.partial_cmp(&b);
             let res_big = big_a.partial_cmp(&big_b);
-
             assert_eq!(res, res_big);
-            println!();
         }
     }
 
     #[test]
     fn get_bit() {
-        for (a, b) in NUM_PAIRS2 {
+        for (a, b) in get_bit_manipulation_test_cases() {
             let big_a = BignumFast::from(a);
             check_pos(&big_a);
 
@@ -914,14 +934,7 @@ mod tests {
 
     #[test]
     fn set_bit() {
-        let base = 0xaabb;
-        let mut test_cases = vec![];
-
-        for i in 0..128 {
-            test_cases.push((base, i as usize));
-        }
-
-        for (mut a, b) in test_cases {
+        for (mut a, b) in get_bit_manipulation_test_cases() {
             let mut big_a = BignumFast::from(a);
             check_pos(&big_a);
             big_a.set_bit(b);
@@ -929,6 +942,7 @@ mod tests {
 
             a |= 1 << b;
             let a = BignumFast::from(a);
+            check_pos(&a);
 
             assert_eq!(a, big_a);
         }
@@ -936,14 +950,7 @@ mod tests {
 
     #[test]
     fn unset_bit() {
-        let base = 0xaabb;
-        let mut test_cases = vec![];
-
-        for i in 0..128 {
-            test_cases.push((base, i as usize));
-        }
-
-        for (mut a, b) in test_cases {
+        for (mut a, b) in get_bit_manipulation_test_cases() {
             let mut big_a = BignumFast::from(a);
             check_pos(&big_a);
             big_a.unset_bit(b);
@@ -951,6 +958,7 @@ mod tests {
 
             a &= !(1 << b);
             let a = BignumFast::from(a);
+            check_pos(&a);
 
             assert_eq!(a, big_a);
         }
@@ -958,14 +966,7 @@ mod tests {
 
     #[test]
     fn toggle_bit() {
-        let base = 0xaabb;
-        let mut test_cases = vec![];
-
-        for i in 0..128 {
-            test_cases.push((base, i as usize));
-        }
-
-        for (mut a, b) in test_cases {
+        for (mut a, b) in get_bit_manipulation_test_cases() {
             let mut big_a = BignumFast::from(a);
             check_pos(&big_a);
             big_a.toggle_bit(b);
@@ -973,6 +974,7 @@ mod tests {
 
             a ^= 1 << b;
             let a = BignumFast::from(a);
+            check_pos(&a);
 
             assert_eq!(a, big_a);
         }
