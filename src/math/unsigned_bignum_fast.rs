@@ -1,4 +1,5 @@
 use super::signed_bignum_fast::SignedBignumFast;
+use std::io::Read;
 
 #[derive(Debug, Clone)]
 pub struct UnsignedBignumFast<const NUM_BYTES: usize> {
@@ -341,6 +342,23 @@ impl<const NUM_BYTES: usize> UnsignedBignumFast<NUM_BYTES> {
         let (_, r) = t.div_with_remainder(modulus);
         r
     }
+
+    pub fn rand() -> Self {
+        let mut f = std::fs::File::open("/dev/urandom").expect("Can't open file /dev/urandom");
+        let mut buf = [0u8; NUM_BYTES];
+        f.read_exact(&mut buf)
+            .expect("Can't read from file /dev/urandom");
+        let mut pos_last_non_zero = 0;
+        for (i, e) in buf.iter().enumerate() {
+            if *e != 0 {
+                pos_last_non_zero = i;
+            }
+        }
+        Self {
+            digits: buf,
+            pos: pos_last_non_zero,
+        }
+    }
 }
 
 impl<const NUM_BYTES: usize> Default for UnsignedBignumFast<NUM_BYTES> {
@@ -558,6 +576,24 @@ impl<const NUM_BYTES: usize> std::ops::Mul for UnsignedBignumFast<NUM_BYTES> {
 
     fn mul(self, rhs: Self) -> Self::Output {
         self.mul_ref(&rhs)
+    }
+}
+
+impl<const NUM_BYTES: usize> std::ops::Div for UnsignedBignumFast<NUM_BYTES> {
+    type Output = Self;
+
+    fn div(self, rhs: Self) -> Self::Output {
+        let (q, _) = Self::div_with_remainder(&self, &rhs);
+        q
+    }
+}
+
+impl<const NUM_BYTES: usize> std::ops::Rem for UnsignedBignumFast<NUM_BYTES> {
+    type Output = Self;
+
+    fn rem(self, rhs: Self) -> Self::Output {
+        let (_, r) = Self::div_with_remainder(&self, &rhs);
+        r
     }
 }
 
@@ -996,6 +1032,15 @@ mod tests {
             check_pos(&a);
 
             assert_eq!(a, big_a);
+        }
+    }
+
+    #[test]
+    fn rand() {
+        for _ in 0..100 {
+            let r: UnsignedBignumFast<20> = UnsignedBignumFast::rand();
+            dbg!(&r);
+            check_pos(&r);
         }
     }
 }
