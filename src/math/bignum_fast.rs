@@ -1,14 +1,8 @@
-// const NUM_BYTES: usize = 5000;
-
 #[derive(Debug, Clone)]
 pub struct BignumFast<const NUM_BYTES: usize> {
     digits: [u8; NUM_BYTES],
     pos: usize,
 }
-
-// fn check_byte_length(value: &[u8]) -> bool {
-//     value.len() > NUM_BYTES
-// }
 
 fn calc_pos(length: usize) -> usize {
     if length <= 2 {
