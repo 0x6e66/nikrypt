@@ -1,7 +1,9 @@
+use super::signed_bignum_fast::SignedBignumFast;
+
 #[derive(Debug, Clone)]
-pub struct BignumFast<const NUM_BYTES: usize> {
-    digits: [u8; NUM_BYTES],
-    pos: usize,
+pub struct UnsignedBignumFast<const NUM_BYTES: usize> {
+    pub(crate) digits: [u8; NUM_BYTES],
+    pub(crate) pos: usize,
 }
 
 fn calc_pos(length: usize) -> usize {
@@ -14,9 +16,9 @@ fn calc_pos(length: usize) -> usize {
     }
 }
 
-impl<const NUM_BYTES: usize> BignumFast<NUM_BYTES> {
+impl<const NUM_BYTES: usize> UnsignedBignumFast<NUM_BYTES> {
     pub fn new() -> Self {
-        BignumFast::zero()
+        UnsignedBignumFast::zero()
     }
 
     pub fn zero() -> Self {
@@ -206,7 +208,7 @@ impl<const NUM_BYTES: usize> BignumFast<NUM_BYTES> {
             false => (rhs, self),
         };
 
-        let mut bignum = BignumFast::new();
+        let mut bignum = UnsignedBignumFast::new();
         bignum.pos = long.pos;
 
         let mut carry = 0;
@@ -237,12 +239,12 @@ impl<const NUM_BYTES: usize> BignumFast<NUM_BYTES> {
                 self.to_hex_string(),
                 rhs.to_hex_string()
             ),
-            Some(std::cmp::Ordering::Equal) => return BignumFast::zero(),
+            Some(std::cmp::Ordering::Equal) => return UnsignedBignumFast::zero(),
             _ => (),
         }
 
         let (long, short) = (self, rhs);
-        let mut bignum = BignumFast::new();
+        let mut bignum = UnsignedBignumFast::new();
 
         let mut carry = 0;
         let mut pos_last_non_zero = 0;
@@ -275,7 +277,7 @@ impl<const NUM_BYTES: usize> BignumFast<NUM_BYTES> {
             panic!("Attempted multiplication with overflow");
         }
 
-        let mut bignum = BignumFast::new();
+        let mut bignum = UnsignedBignumFast::new();
 
         let mut pos_last_non_zero = 0;
         for b_i in 0..q {
@@ -302,8 +304,8 @@ impl<const NUM_BYTES: usize> BignumFast<NUM_BYTES> {
     }
 
     pub fn div_with_remainder(&self, rhs: &Self) -> (Self, Self) {
-        let mut q = BignumFast::new();
-        let mut r = BignumFast::new();
+        let mut q = UnsignedBignumFast::new();
+        let mut r = UnsignedBignumFast::new();
 
         let (n_len, n) = (self.len() * 8, self);
 
@@ -328,12 +330,12 @@ impl<const NUM_BYTES: usize> BignumFast<NUM_BYTES> {
         let mut base = self;
         let mut exp = exponent;
 
-        let mut t = BignumFast::from(1);
+        let mut t = UnsignedBignumFast::from(1);
         while !exp.is_zero() {
             if !exp.is_even() {
-                (_, t) = BignumFast::mul_ref(&t, &base).div_with_remainder(modulus);
+                (_, t) = UnsignedBignumFast::mul_ref(&t, &base).div_with_remainder(modulus);
             }
-            (_, base) = BignumFast::mul_ref(&base, &base).div_with_remainder(modulus);
+            (_, base) = UnsignedBignumFast::mul_ref(&base, &base).div_with_remainder(modulus);
             exp = exp >> 1;
         }
         let (_, r) = t.div_with_remainder(modulus);
@@ -341,13 +343,13 @@ impl<const NUM_BYTES: usize> BignumFast<NUM_BYTES> {
     }
 }
 
-impl<const NUM_BYTES: usize> Default for BignumFast<NUM_BYTES> {
+impl<const NUM_BYTES: usize> Default for UnsignedBignumFast<NUM_BYTES> {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl<const NUM_BYTES: usize> PartialEq for BignumFast<NUM_BYTES> {
+impl<const NUM_BYTES: usize> PartialEq for UnsignedBignumFast<NUM_BYTES> {
     fn eq(&self, other: &Self) -> bool {
         if self.pos != other.pos {
             return false;
@@ -367,7 +369,7 @@ impl<const NUM_BYTES: usize> PartialEq for BignumFast<NUM_BYTES> {
     }
 }
 
-impl<const NUM_BYTES: usize> PartialOrd for BignumFast<NUM_BYTES> {
+impl<const NUM_BYTES: usize> PartialOrd for UnsignedBignumFast<NUM_BYTES> {
     fn lt(&self, other: &Self) -> bool {
         if self.pos != other.pos {
             return self.pos.lt(&other.pos);
@@ -459,7 +461,7 @@ impl<const NUM_BYTES: usize> PartialOrd for BignumFast<NUM_BYTES> {
     }
 }
 
-impl<const NUM_BYTES: usize> std::ops::Shr<usize> for BignumFast<NUM_BYTES> {
+impl<const NUM_BYTES: usize> std::ops::Shr<usize> for UnsignedBignumFast<NUM_BYTES> {
     type Output = Self;
 
     fn shr(mut self, rhs: usize) -> Self::Output {
@@ -496,7 +498,7 @@ impl<const NUM_BYTES: usize> std::ops::Shr<usize> for BignumFast<NUM_BYTES> {
     }
 }
 
-impl<const NUM_BYTES: usize> std::ops::Shl<usize> for BignumFast<NUM_BYTES> {
+impl<const NUM_BYTES: usize> std::ops::Shl<usize> for UnsignedBignumFast<NUM_BYTES> {
     type Output = Self;
 
     fn shl(mut self, rhs: usize) -> Self::Output {
@@ -535,7 +537,7 @@ impl<const NUM_BYTES: usize> std::ops::Shl<usize> for BignumFast<NUM_BYTES> {
     }
 }
 
-impl<const NUM_BYTES: usize> std::ops::Add for BignumFast<NUM_BYTES> {
+impl<const NUM_BYTES: usize> std::ops::Add for UnsignedBignumFast<NUM_BYTES> {
     type Output = Self;
 
     fn add(self, rhs: Self) -> Self::Output {
@@ -543,7 +545,7 @@ impl<const NUM_BYTES: usize> std::ops::Add for BignumFast<NUM_BYTES> {
     }
 }
 
-impl<const NUM_BYTES: usize> std::ops::Sub for BignumFast<NUM_BYTES> {
+impl<const NUM_BYTES: usize> std::ops::Sub for UnsignedBignumFast<NUM_BYTES> {
     type Output = Self;
 
     fn sub(self, rhs: Self) -> Self::Output {
@@ -551,7 +553,7 @@ impl<const NUM_BYTES: usize> std::ops::Sub for BignumFast<NUM_BYTES> {
     }
 }
 
-impl<const NUM_BYTES: usize> std::ops::Mul for BignumFast<NUM_BYTES> {
+impl<const NUM_BYTES: usize> std::ops::Mul for UnsignedBignumFast<NUM_BYTES> {
     type Output = Self;
 
     fn mul(self, rhs: Self) -> Self::Output {
@@ -559,9 +561,9 @@ impl<const NUM_BYTES: usize> std::ops::Mul for BignumFast<NUM_BYTES> {
     }
 }
 
-impl<const NUM_BYTES: usize> From<u128> for BignumFast<NUM_BYTES> {
+impl<const NUM_BYTES: usize> From<u128> for UnsignedBignumFast<NUM_BYTES> {
     fn from(value: u128) -> Self {
-        let mut bignum = BignumFast::new();
+        let mut bignum = UnsignedBignumFast::new();
 
         let mut pos_last_non_zero = 0;
         for i in 0..16 {
@@ -577,13 +579,22 @@ impl<const NUM_BYTES: usize> From<u128> for BignumFast<NUM_BYTES> {
     }
 }
 
+impl<const NUM_BYTES: usize> From<SignedBignumFast<NUM_BYTES>> for UnsignedBignumFast<NUM_BYTES> {
+    fn from(value: SignedBignumFast<NUM_BYTES>) -> Self {
+        Self {
+            digits: value.digits,
+            pos: value.pos,
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
 
     const N: usize = 200;
 
-    fn check_pos<const NUM_BYTES: usize>(bn: &BignumFast<NUM_BYTES>) {
+    fn check_pos<const NUM_BYTES: usize>(bn: &UnsignedBignumFast<NUM_BYTES>) {
         let mut pos_last_non_zero = 0;
         for (i, e) in bn.digits.iter().enumerate() {
             if *e != 0 {
@@ -629,7 +640,7 @@ mod tests {
             ("0x0", 0),
             ("0x1", 0),
         ] {
-            let bignum: BignumFast<N> = BignumFast::try_from_hex_string(s).unwrap();
+            let bignum: UnsignedBignumFast<N> = UnsignedBignumFast::try_from_hex_string(s).unwrap();
             check_pos(&bignum);
 
             assert_eq!(p, bignum.pos);
@@ -642,18 +653,20 @@ mod tests {
         for (a, b) in get_arithmatik_test_cases() {
             let s = format!("{:#02x}", a);
 
-            let bignum: BignumFast<N> = BignumFast::try_from_hex_string(&s).unwrap();
+            let bignum: UnsignedBignumFast<N> =
+                UnsignedBignumFast::try_from_hex_string(&s).unwrap();
             check_pos(&bignum);
 
-            let bignum2: BignumFast<N> = BignumFast::from(a);
+            let bignum2: UnsignedBignumFast<N> = UnsignedBignumFast::from(a);
             assert_eq!(bignum, bignum2);
 
             let s = format!("{:#02x}", b);
 
-            let bignum: BignumFast<N> = BignumFast::try_from_hex_string(&s).unwrap();
+            let bignum: UnsignedBignumFast<N> =
+                UnsignedBignumFast::try_from_hex_string(&s).unwrap();
             check_pos(&bignum);
 
-            let bignum2: BignumFast<N> = BignumFast::from(b);
+            let bignum2: UnsignedBignumFast<N> = UnsignedBignumFast::from(b);
             assert_eq!(bignum, bignum2);
         }
     }
@@ -672,7 +685,7 @@ mod tests {
             ("0x0", 1),
             ("0x1", 1),
         ] {
-            let bignum: BignumFast<N> = BignumFast::try_from_hex_string(s).unwrap();
+            let bignum: UnsignedBignumFast<N> = UnsignedBignumFast::try_from_hex_string(s).unwrap();
             check_pos(&bignum);
 
             println!("{:?} {}", &bignum.digits[0..7], bignum.pos);
@@ -694,7 +707,7 @@ mod tests {
             ("0x0", 0),
             ("0x1", 0),
         ] {
-            let bignum: BignumFast<N> = BignumFast::try_from_hex_string(s).unwrap();
+            let bignum: UnsignedBignumFast<N> = UnsignedBignumFast::try_from_hex_string(s).unwrap();
             check_pos(&bignum);
 
             println!("{} {:?} {}", s, &bignum.digits[0..7], bignum.pos);
@@ -712,7 +725,7 @@ mod tests {
             (vec![0, 1, 2, 3, 0], "0x3020100"),
             (vec![0, 1, 2, 3, 4, 0], "0x403020100"),
         ] {
-            let bignum: BignumFast<N> = BignumFast::from_little_endian(&e).unwrap();
+            let bignum: UnsignedBignumFast<N> = UnsignedBignumFast::from_little_endian(&e).unwrap();
             check_pos(&bignum);
 
             assert_eq!(bignum.to_hex_string(), s);
@@ -729,7 +742,7 @@ mod tests {
             (vec![0, 1, 2, 3, 0], "0x1020300"),
             (vec![0, 1, 2, 3, 4, 0], "0x102030400"),
         ] {
-            let bignum: BignumFast<N> = BignumFast::from_big_endian(&e).unwrap();
+            let bignum: UnsignedBignumFast<N> = UnsignedBignumFast::from_big_endian(&e).unwrap();
             check_pos(&bignum);
 
             assert_eq!(bignum.to_hex_string(), s);
@@ -739,12 +752,12 @@ mod tests {
     #[test]
     fn from_u128() {
         for (a, b) in get_arithmatik_test_cases() {
-            let bignum: BignumFast<N> = BignumFast::from(a);
+            let bignum: UnsignedBignumFast<N> = UnsignedBignumFast::from(a);
             check_pos(&bignum);
             let s = format!("{:#02x}", a);
             assert_eq!(bignum.to_hex_string(), s);
 
-            let bignum: BignumFast<N> = BignumFast::from(b);
+            let bignum: UnsignedBignumFast<N> = UnsignedBignumFast::from(b);
             check_pos(&bignum);
             let s = format!("{:#02x}", b);
             assert_eq!(bignum.to_hex_string(), s);
@@ -760,12 +773,12 @@ mod tests {
         }
 
         for (a, b) in test_cases {
-            let big_a: BignumFast<N> = BignumFast::from(a);
+            let big_a: UnsignedBignumFast<N> = UnsignedBignumFast::from(a);
             check_pos(&big_a);
 
-            let res: BignumFast<N> = BignumFast::from(a >> b);
+            let res: UnsignedBignumFast<N> = UnsignedBignumFast::from(a >> b);
             check_pos(&res);
-            let res_big: BignumFast<N> = big_a >> b;
+            let res_big: UnsignedBignumFast<N> = big_a >> b;
             check_pos(&res_big);
 
             assert_eq!(res, res_big);
@@ -781,12 +794,12 @@ mod tests {
         }
 
         for (a, b) in test_cases {
-            let big_a: BignumFast<N> = BignumFast::from(a);
+            let big_a: UnsignedBignumFast<N> = UnsignedBignumFast::from(a);
             check_pos(&big_a);
 
-            let res: BignumFast<N> = BignumFast::from(a << b);
+            let res: UnsignedBignumFast<N> = UnsignedBignumFast::from(a << b);
             check_pos(&res);
-            let res_big: BignumFast<N> = big_a << b;
+            let res_big: UnsignedBignumFast<N> = big_a << b;
             check_pos(&res_big);
 
             assert_eq!(res, res_big);
@@ -796,14 +809,14 @@ mod tests {
     #[test]
     fn addition() {
         for (a, b) in get_arithmatik_test_cases() {
-            let big_a: BignumFast<N> = BignumFast::from(a);
+            let big_a: UnsignedBignumFast<N> = UnsignedBignumFast::from(a);
             check_pos(&big_a);
-            let big_b: BignumFast<N> = BignumFast::from(b);
+            let big_b: UnsignedBignumFast<N> = UnsignedBignumFast::from(b);
             check_pos(&big_b);
 
-            let res: BignumFast<N> = BignumFast::from(a + b);
+            let res: UnsignedBignumFast<N> = UnsignedBignumFast::from(a + b);
             check_pos(&res);
-            let res_big: BignumFast<N> = big_a + big_b;
+            let res_big: UnsignedBignumFast<N> = big_a + big_b;
             check_pos(&res_big);
 
             assert_eq!(res, res_big);
@@ -818,14 +831,14 @@ mod tests {
                 false => (b, a),
             };
 
-            let big_a: BignumFast<N> = BignumFast::from(a);
+            let big_a: UnsignedBignumFast<N> = UnsignedBignumFast::from(a);
             check_pos(&big_a);
-            let big_b: BignumFast<N> = BignumFast::from(b);
+            let big_b: UnsignedBignumFast<N> = UnsignedBignumFast::from(b);
             check_pos(&big_b);
 
-            let res: BignumFast<N> = BignumFast::from(a - b);
+            let res: UnsignedBignumFast<N> = UnsignedBignumFast::from(a - b);
             check_pos(&res);
-            let res_big: BignumFast<N> = big_a - big_b;
+            let res_big: UnsignedBignumFast<N> = big_a - big_b;
             check_pos(&res_big);
 
             assert_eq!(res, res_big);
@@ -841,26 +854,26 @@ mod tests {
                 true => (b, a),
             };
 
-            let big_a: BignumFast<N> = BignumFast::from(a);
+            let big_a: UnsignedBignumFast<N> = UnsignedBignumFast::from(a);
             check_pos(&big_a);
-            let big_b: BignumFast<N> = BignumFast::from(b);
+            let big_b: UnsignedBignumFast<N> = UnsignedBignumFast::from(b);
             check_pos(&big_b);
 
-            let _res_big: BignumFast<N> = big_a - big_b;
+            let _res_big: UnsignedBignumFast<N> = big_a - big_b;
         }
     }
 
     #[test]
     fn multiplication() {
         for (a, b) in get_arithmatik_test_cases() {
-            let big_a: BignumFast<N> = BignumFast::from(a);
+            let big_a: UnsignedBignumFast<N> = UnsignedBignumFast::from(a);
             check_pos(&big_a);
-            let big_b: BignumFast<N> = BignumFast::from(b);
+            let big_b: UnsignedBignumFast<N> = UnsignedBignumFast::from(b);
             check_pos(&big_b);
 
-            let res: BignumFast<N> = BignumFast::from(a * b);
+            let res: UnsignedBignumFast<N> = UnsignedBignumFast::from(a * b);
             check_pos(&res);
-            let res_big: BignumFast<N> = big_a * big_b;
+            let res_big: UnsignedBignumFast<N> = big_a * big_b;
             check_pos(&res_big);
 
             assert_eq!(res, res_big);
@@ -873,16 +886,16 @@ mod tests {
             if b == 0 {
                 continue;
             }
-            let big_a: BignumFast<N> = BignumFast::from(a);
+            let big_a: UnsignedBignumFast<N> = UnsignedBignumFast::from(a);
             check_pos(&big_a);
-            let big_b: BignumFast<N> = BignumFast::from(b as u128);
+            let big_b: UnsignedBignumFast<N> = UnsignedBignumFast::from(b as u128);
             check_pos(&big_b);
 
-            let (big_q, big_r) = BignumFast::div_with_remainder(&big_a, &big_b);
+            let (big_q, big_r) = UnsignedBignumFast::div_with_remainder(&big_a, &big_b);
             check_pos(&big_q);
             check_pos(&big_r);
-            let q: BignumFast<N> = BignumFast::from(a / b);
-            let r: BignumFast<N> = BignumFast::from(a % b);
+            let q: UnsignedBignumFast<N> = UnsignedBignumFast::from(a / b);
+            let r: UnsignedBignumFast<N> = UnsignedBignumFast::from(a % b);
             check_pos(&q);
             check_pos(&r);
 
@@ -894,8 +907,8 @@ mod tests {
     #[test]
     fn comparison() {
         for (a, b) in get_arithmatik_test_cases() {
-            let big_a: BignumFast<N> = BignumFast::from(a);
-            let big_b: BignumFast<N> = BignumFast::from(b);
+            let big_a: UnsignedBignumFast<N> = UnsignedBignumFast::from(a);
+            let big_b: UnsignedBignumFast<N> = UnsignedBignumFast::from(b);
             check_pos(&big_a);
             check_pos(&big_b);
 
@@ -928,7 +941,7 @@ mod tests {
     #[test]
     fn get_bit() {
         for (a, b) in get_bit_manipulation_test_cases() {
-            let big_a: BignumFast<N> = BignumFast::from(a);
+            let big_a: UnsignedBignumFast<N> = UnsignedBignumFast::from(a);
             check_pos(&big_a);
 
             let res = (a >> b) & 1 == 1;
@@ -941,13 +954,13 @@ mod tests {
     #[test]
     fn set_bit() {
         for (mut a, b) in get_bit_manipulation_test_cases() {
-            let mut big_a: BignumFast<N> = BignumFast::from(a);
+            let mut big_a: UnsignedBignumFast<N> = UnsignedBignumFast::from(a);
             check_pos(&big_a);
             big_a.set_bit(b);
             check_pos(&big_a);
 
             a |= 1 << b;
-            let a = BignumFast::from(a);
+            let a = UnsignedBignumFast::from(a);
             check_pos(&a);
 
             assert_eq!(a, big_a);
@@ -957,13 +970,13 @@ mod tests {
     #[test]
     fn unset_bit() {
         for (mut a, b) in get_bit_manipulation_test_cases() {
-            let mut big_a: BignumFast<N> = BignumFast::from(a);
+            let mut big_a: UnsignedBignumFast<N> = UnsignedBignumFast::from(a);
             check_pos(&big_a);
             big_a.unset_bit(b);
             check_pos(&big_a);
 
             a &= !(1 << b);
-            let a = BignumFast::from(a);
+            let a = UnsignedBignumFast::from(a);
             check_pos(&a);
 
             assert_eq!(a, big_a);
@@ -973,13 +986,13 @@ mod tests {
     #[test]
     fn toggle_bit() {
         for (mut a, b) in get_bit_manipulation_test_cases() {
-            let mut big_a: BignumFast<N> = BignumFast::from(a);
+            let mut big_a: UnsignedBignumFast<N> = UnsignedBignumFast::from(a);
             check_pos(&big_a);
             big_a.toggle_bit(b);
             check_pos(&big_a);
 
             a ^= 1 << b;
-            let a = BignumFast::from(a);
+            let a = UnsignedBignumFast::from(a);
             check_pos(&a);
 
             assert_eq!(a, big_a);
