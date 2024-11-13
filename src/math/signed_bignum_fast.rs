@@ -243,7 +243,7 @@ impl<const NUM_BYTES: usize> SignedBignumFast<NUM_BYTES> {
         false
     }
 
-    fn add_ref(&self, rhs: &Self) -> Self {
+    pub fn add_ref(&self, rhs: &Self) -> Self {
         match (self.sign, rhs.sign) {
             // (x)  +  (y) => x + y
             (false, false) => Self::add_ref_internal(self, rhs),
@@ -490,6 +490,30 @@ impl<const NUM_BYTES: usize> SignedBignumFast<NUM_BYTES> {
         r.sign = sign;
 
         r
+    }
+
+    pub fn pow(self, other: Self) -> Self {
+        let mut x = self;
+        let mut n = other;
+
+        let one = 1.into();
+        let two = 2.into();
+
+        if n.is_zero() {
+            return one;
+        }
+
+        let mut y = one.clone();
+        while n > 1.into() {
+            if !n.is_even() {
+                y = x.mul_ref(&y);
+                n = n.sub_ref(&one);
+            }
+            x = x.mul_ref(&x);
+            (n, _) = n.div_with_remainder(&two);
+        }
+
+        x * y
     }
 }
 
@@ -1094,6 +1118,26 @@ mod tests {
 
             assert_eq!(q, big_q);
             assert_eq!(r, big_r);
+        }
+    }
+
+    #[test]
+    fn pow() {
+        let mut test_cases: Vec<(u128, u128)> = vec![];
+        for a in 0..20 {
+            for b in 0..20 {
+                test_cases.push((a, b));
+            }
+        }
+
+        for (a, b) in test_cases {
+            let big_a: SignedBignumFast<N> = SignedBignumFast::from(a);
+            let big_b = SignedBignumFast::from(b);
+
+            let res = SignedBignumFast::from(a.pow(b as u32));
+            let res_big = big_a.pow(big_b);
+
+            assert_eq!(res, res_big);
         }
     }
 

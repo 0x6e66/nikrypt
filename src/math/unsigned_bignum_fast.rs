@@ -343,6 +343,30 @@ impl<const NUM_BYTES: usize> UnsignedBignumFast<NUM_BYTES> {
         r
     }
 
+    pub fn pow(self, other: Self) -> Self {
+        let mut x = self;
+        let mut n = other;
+
+        let one = 1.into();
+        let two = 2.into();
+
+        if n.is_zero() {
+            return one;
+        }
+
+        let mut y = one.clone();
+        while n > 1.into() {
+            if !n.is_even() {
+                y = x.mul_ref(&y);
+                n = n.sub_ref(&one);
+            }
+            x = x.mul_ref(&x);
+            (n, _) = n.div_with_remainder(&two);
+        }
+
+        x * y
+    }
+
     pub fn rand() -> Self {
         let mut f = std::fs::File::open("/dev/urandom").expect("Can't open file /dev/urandom");
         let mut buf = [0u8; NUM_BYTES];
@@ -937,6 +961,26 @@ mod tests {
 
             assert_eq!(big_q, q);
             assert_eq!(big_r, r);
+        }
+    }
+
+    #[test]
+    fn pow() {
+        let mut test_cases: Vec<(u128, u128)> = vec![];
+        for a in 0..20 {
+            for b in 0..20 {
+                test_cases.push((a, b));
+            }
+        }
+
+        for (a, b) in test_cases {
+            let big_a: SignedBignumFast<N> = SignedBignumFast::from(a);
+            let big_b = SignedBignumFast::from(b);
+
+            let res = SignedBignumFast::from(a.pow(b as u32));
+            let res_big = big_a.pow(big_b);
+
+            assert_eq!(res, res_big);
         }
     }
 
