@@ -33,6 +33,55 @@ pub struct EccPoint<const NUM_BYTES: usize> {
     y: EccCoordinate<NUM_BYTES>,
 }
 
+impl<const NUM_BYTES: usize> EccPoint<NUM_BYTES> {
+    pub fn new() -> Self {
+        Self::zero()
+    }
+
+    pub fn zero() -> Self {
+        Self {
+            x: EccCoordinate::zero(),
+            y: EccCoordinate::zero(),
+        }
+    }
+
+    pub fn add_ref(&self, rhs: &Self, p: &UnsignedBignumFast<NUM_BYTES>) -> Self {
+        if self.eq(&rhs) {
+            panic!("Point addition is only allowed for P != Q. Use point doubling instead.");
+        }
+
+        let s = EccCoordinate::div_ref(&self.y.sub_ref(&rhs.y, p), &self.x.sub_ref(&rhs.x, p), p);
+
+        let rx = s.square(p).sub_ref(&self.x, p).sub_ref(&rhs.x, p);
+        let ry = s.mul_ref(&self.x.sub_ref(&rx, p), p).sub_ref(&self.y, p);
+
+        Self { x: rx, y: ry }
+    }
+
+    pub fn double(&self, a: &EccCoordinate<NUM_BYTES>, p: &UnsignedBignumFast<NUM_BYTES>) -> Self {
+        let s = EccCoordinate::div_ref(
+            &EccCoordinate::from_u128(3, p)
+                .mul_ref(&self.x.square(p), p)
+                .add_ref(a, p),
+            &EccCoordinate::from_u128(2, p).mul_ref(&self.y, p),
+            p,
+        );
+
+        let rx = s
+            .square(p)
+            .sub_ref(&EccCoordinate::from_u128(2, p).mul_ref(&self.x, p), p);
+        let ry = s.mul_ref(&self.x.sub_ref(&rx, p), p).sub_ref(&self.y, p);
+
+        Self { x: rx, y: ry }
+    }
+}
+
+impl<const NUM_BYTES: usize> PartialEq for EccPoint<NUM_BYTES> {
+    fn eq(&self, other: &Self) -> bool {
+        self.x.eq(&other.x) && self.y.eq(&other.y)
+    }
+}
+
 // #############################################################
 
 #[derive(Debug, Clone)]
@@ -95,6 +144,10 @@ impl<const NUM_BYTES: usize> EccCoordinate<NUM_BYTES> {
         let res = self.mul_ref(&m_coord, p);
 
         res
+    }
+
+    pub fn square(&self, p: &UnsignedBignumFast<NUM_BYTES>) -> Self {
+        self.pow(&EccCoordinate { bn: 2.into() }, p)
     }
 
     pub fn pow(&self, rhs: &Self, p: &UnsignedBignumFast<NUM_BYTES>) -> Self {
