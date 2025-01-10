@@ -13,26 +13,14 @@ impl<const NUM_DIGITS: usize> UBignum<NUM_DIGITS> {
             return;
         }
 
-        let (long, short) = (self, rhs);
+        let mut carry: u8 = 0;
 
-        let mut carry = 0;
-        let mut pos_last_non_zero = 0;
-        for i in 0..long.len() {
-            let (mut sum, mut tmp_carry) = long.digits[i].overflowing_sub(carry);
-            carry = tmp_carry as u64;
-
-            if i < short.len() {
-                (sum, tmp_carry) = sum.overflowing_sub(short.digits[i]);
-                carry += tmp_carry as u64;
-            }
-
-            if sum != 0 {
-                pos_last_non_zero = i;
-            }
-
-            long.digits[i] = sum;
+        for (left, right) in self.digits.iter_mut().rev().zip(rhs.digits.iter().rev()) {
+            let (res, c1) = left.overflowing_sub(*right);
+            let (res, c2) = res.overflowing_sub(carry as u64);
+            *left = res;
+            carry = (c1 || c2).into();
         }
-        long.pos = pos_last_non_zero;
     }
 }
 
