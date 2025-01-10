@@ -16,6 +16,13 @@ impl<const NUM_DIGITS: usize> UBignum<NUM_DIGITS> {
         }
     }
 
+    pub fn set_zero(&mut self) {
+        for d in self.digits[0..self.pos + 1].iter_mut() {
+            *d = 0;
+        }
+        self.pos = 0;
+    }
+
     pub fn one() -> Self {
         let mut digits = [0u64; NUM_DIGITS];
         digits[0] = 1;
@@ -96,33 +103,25 @@ impl<const NUM_DIGITS: usize> UBignum<NUM_DIGITS> {
     }
 }
 
-impl<const N: usize> PartialEq for UBignum<N> {
-    fn eq(&self, other: &Self) -> bool {
-        if self.pos != other.pos {
-            return false;
-        }
-
-        for (a, b) in self
-            .digits
-            .iter()
-            .rev()
-            .take(self.len())
-            .zip(other.digits.iter().rev().take(other.len()))
-        {
-            if a != b {
-                return false;
-            }
-        }
-
-        true
-    }
-}
-
 impl<const N: usize> From<usize> for UBignum<N> {
     fn from(value: usize) -> Self {
         let mut digits = [0u64; N];
         digits[0] = value as u64;
         Self { digits, pos: 0 }
+    }
+}
+
+impl<const N: usize> From<u128> for UBignum<N> {
+    fn from(value: u128) -> Self {
+        let mut digits = [0u64; N];
+        digits[0] = value as u64;
+        digits[1] = (value >> 64) as u64;
+        let pos = match digits[1] > 0 {
+            true => 1,
+            false => 0,
+        };
+
+        Self { digits, pos }
     }
 }
 

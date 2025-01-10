@@ -12,28 +12,30 @@ impl<const NUM_DIGITS: usize> UBignum<NUM_DIGITS> {
         carry
     }
 }
+impl<const NUM_DIGITS: usize> std::ops::AddAssign for UBignum<NUM_DIGITS> {
+    fn add_assign(&mut self, rhs: Self) {
+        Self::add_assign_ref(self, &rhs);
+    }
+}
 
 #[cfg(test)]
 mod tests {
-    use crate::math::ubignum::utils::py_test;
+    use crate::math::ubignum::utils::{get_arithmatik_test_cases, py_test};
 
     use super::*;
 
     #[test]
     fn addition() {
-        for a in (0..usize::MAX).step_by(usize::MAX / 10) {
-            for b in (0..usize::MAX).step_by(usize::MAX / 10) {
-                let mut bn_a: UBignum<2> = UBignum::from(a);
-                let bn_b: UBignum<2> = UBignum::from(b);
+        for (a, b) in get_arithmatik_test_cases() {
+            let mut bn_a: UBignum<2> = UBignum::from(a);
+            let bn_b: UBignum<2> = UBignum::from(b);
 
-                bn_a.add_assign_ref(&bn_b);
-
-                let bn_res: UBignum<2> = py_test(&format!(
-                    "{}+{}",
-                    bn_a.to_hex_string(),
-                    bn_b.to_hex_string()
-                ));
-            }
+            let bn_res: UBignum<2> = py_test(&format!(
+                "{}+{}",
+                bn_a.to_hex_string(),
+                bn_b.to_hex_string()
+            ));
+            bn_a.add_assign_ref(&bn_b);
         }
     }
 }
