@@ -52,6 +52,8 @@ mod tests {
             ));
 
             bn_a.sub_assign_ref(&bn_b);
+
+            assert_eq!(bn_a, bn_res);
         }
     }
 

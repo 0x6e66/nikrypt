@@ -12,6 +12,7 @@ impl<const NUM_DIGITS: usize> UBignum<NUM_DIGITS> {
         carry
     }
 }
+
 impl<const NUM_DIGITS: usize> std::ops::AddAssign for UBignum<NUM_DIGITS> {
     fn add_assign(&mut self, rhs: Self) {
         Self::add_assign_ref(self, &rhs);
@@ -36,6 +37,8 @@ mod tests {
                 bn_b.to_hex_string()
             ));
             bn_a.add_assign_ref(&bn_b);
+
+            assert_eq!(bn_a, bn_res);
         }
     }
 }
