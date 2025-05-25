@@ -7,26 +7,26 @@ mod word;
 use cipher::{cipher, inv_cipher};
 use key::Key;
 
-pub fn encrypt(key: Key, plaintext: [u8; 16]) -> Result<[u8; 16], String> {
+pub fn encrypt(key: Key, plaintext: [u8; 16]) -> [u8; 16] {
     let nr = match key.get_size_in_bytes() {
         16 => 10,
         24 => 12,
         32 => 14,
-        _ => return Err("Key has wrong length".to_owned()),
+        _ => unreachable!(),
     };
-    let w = key.get_round_keys().unwrap();
-    Ok(cipher(plaintext, nr, w))
+    let w = key.get_round_keys();
+    cipher(plaintext, nr, w)
 }
 
-pub fn decrypt(key: Key, plaintext: [u8; 16]) -> Result<[u8; 16], String> {
+pub fn decrypt(key: Key, plaintext: [u8; 16]) -> [u8; 16] {
     let nr = match key.get_size_in_bytes() {
         16 => 10,
         24 => 12,
         32 => 14,
-        _ => return Err("Key has wrong length".to_owned()),
+        _ => unreachable!(),
     };
-    let w = key.get_round_keys().unwrap();
-    Ok(inv_cipher(plaintext, nr, w))
+    let w = key.get_round_keys();
+    inv_cipher(plaintext, nr, w)
 }
 
 #[cfg(test)]
@@ -50,7 +50,7 @@ mod tests {
             0x0b, 0x32,
         ];
 
-        assert_eq!(super::encrypt(key, plaintext).unwrap(), ciphertext);
+        assert_eq!(super::encrypt(key, plaintext), ciphertext);
     }
 
     #[test]
@@ -70,6 +70,6 @@ mod tests {
             0x0b, 0x32,
         ];
 
-        assert_eq!(super::decrypt(key, plaintext).unwrap(), ciphertext);
+        assert_eq!(super::decrypt(key, plaintext), ciphertext);
     }
 }

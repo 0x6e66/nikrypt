@@ -43,12 +43,12 @@ impl Key {
         self.data.len()
     }
 
-    pub fn get_round_keys(&self) -> Option<Vec<Word>> {
+    pub fn get_round_keys(&self) -> Vec<Word> {
         let (nk, nr) = match self.get_size_in_bytes() {
             16 => (4, 10),
             24 => (6, 12),
             32 => (8, 14),
-            _ => return None,
+            _ => unreachable!(),
         };
 
         let mut w = vec![];
@@ -77,7 +77,8 @@ impl Key {
             w.push(w[i - nk] ^ word);
             i += 1;
         }
-        Some(w)
+
+        w
     }
 }
 
@@ -171,8 +172,7 @@ mod tests {
 
         let w = key.get_round_keys();
 
-        assert!(w.is_some());
-        assert_eq!(correct_round_keys, w.unwrap());
+        assert_eq!(correct_round_keys, w);
     }
 
     #[test]
@@ -239,8 +239,7 @@ mod tests {
 
         let w = key.get_round_keys();
 
-        assert!(w.is_some());
-        assert_eq!(correct_round_keys, w.unwrap());
+        assert_eq!(correct_round_keys, w);
     }
 
     #[test]
@@ -316,7 +315,6 @@ mod tests {
 
         let w = key.get_round_keys();
 
-        assert!(w.is_some());
-        assert_eq!(correct_round_keys, w.unwrap());
+        assert_eq!(correct_round_keys, w);
     }
 }
