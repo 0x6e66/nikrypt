@@ -1,6 +1,6 @@
 use nikrypt::math::bignum_fast::BignumFast;
 
-const N: usize = 260;
+const N: usize = 64;
 
 fn main() {
     let priv_exp: BignumFast<N> = BignumFast::try_from_hex_string("0x8367e1ba7e06c57060c8fbebccb8b033a3c8105b30d7dc31b2e7d1e97dae1ec75b4f5fb0f9f3c9c160fe257d68d74495eea80c0af838f37c9db7a24558c21e28c49d57470b002d90a383caebb5821a59583d15502f0012c9235f806c62c97f1e3cafbc72118fcf60743168125801e06cc7293cde64d241339aad516e7bcc1081").unwrap();
