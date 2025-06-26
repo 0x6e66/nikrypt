@@ -202,6 +202,28 @@ impl<const NUM_DIGITS: usize> BignumFast<NUM_DIGITS> {
         }
     }
 
+    fn add_assign_ref(&mut self, rhs: &Self) {
+        if self.pos < rhs.pos {
+            self.pos = rhs.pos;
+        }
+
+        let mut carry = 0;
+        for i in 0..NUM_DIGITS {
+            let mut tmp = self.digits[i] as u128 + carry;
+            tmp += rhs.digits[i] as u128;
+            carry = tmp >> 64;
+            self.digits[i] = tmp as u64;
+        }
+
+        if carry != 0 {
+            if self.len() == NUM_DIGITS {
+                panic!("Attempted addition with overflow");
+            }
+            self.digits[self.len()] = carry as u64;
+            self.pos += 1;
+        }
+    }
+
     pub fn add_ref(&self, rhs: &Self) -> Self {
         let (long, short) = match self.pos > rhs.pos {
             true => (self, rhs),
@@ -546,6 +568,12 @@ impl<const NUM_DIGITS: usize> std::ops::Add for BignumFast<NUM_DIGITS> {
     }
 }
 
+impl<const NUM_DIGITS: usize> std::ops::AddAssign for BignumFast<NUM_DIGITS> {
+    fn add_assign(&mut self, rhs: Self) {
+        self.add_assign_ref(&rhs);
+    }
+}
+
 impl<const NUM_DIGITS: usize> std::ops::Sub for BignumFast<NUM_DIGITS> {
     type Output = Self;
 
@@ -731,6 +759,23 @@ mod tests {
             check_pos(&res_big);
 
             assert_eq!(res, res_big);
+        }
+    }
+
+    #[test]
+    fn addition_assign() {
+        for (a, b) in get_arithmatik_test_cases() {
+            let mut big_a: BignumFast<N> = BignumFast::from(a);
+            check_pos(&big_a);
+            let big_b: BignumFast<N> = BignumFast::from(b);
+            check_pos(&big_b);
+
+            let res: BignumFast<N> = BignumFast::from(a + b);
+            check_pos(&res);
+            big_a += big_b;
+            check_pos(&big_a);
+
+            assert_eq!(res, big_a);
         }
     }
 
