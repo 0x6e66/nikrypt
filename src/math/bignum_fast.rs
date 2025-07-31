@@ -1,3 +1,5 @@
+use std::ops::Deref;
+
 #[derive(Debug, Clone)]
 pub struct BignumFast<const NUM_DIGITS: usize> {
     digits: [u64; NUM_DIGITS],
@@ -28,6 +30,11 @@ impl<const NUM_DIGITS: usize> BignumFast<NUM_DIGITS> {
 
     pub fn is_zero(&self) -> bool {
         self.pos == 0 && self.digits[0] == 0
+    }
+
+    pub fn set_zero(&mut self) {
+        self.digits = [0; NUM_DIGITS];
+        self.pos = 0;
     }
 
     pub fn is_empty(&self) -> bool {
@@ -202,7 +209,7 @@ impl<const NUM_DIGITS: usize> BignumFast<NUM_DIGITS> {
         }
     }
 
-    fn add_assign_ref(&mut self, rhs: &Self) {
+    pub fn add_assign_ref(&mut self, rhs: &Self) {
         if self.pos < rhs.pos {
             self.pos = rhs.pos;
         }
@@ -252,6 +259,41 @@ impl<const NUM_DIGITS: usize> BignumFast<NUM_DIGITS> {
         }
 
         bignum
+    }
+
+    pub fn sub_assign_ref(&mut self, rhs: &Self) {
+        match self.deref().partial_cmp(rhs) {
+            Some(std::cmp::Ordering::Less) => panic!(
+                "Result of subtraction would be negative.\nlhs: {}\nrhs: {}",
+                self.to_hex_string(),
+                rhs.to_hex_string()
+            ),
+            Some(std::cmp::Ordering::Equal) => {
+                self.set_zero();
+                return;
+            }
+            _ => (),
+        }
+
+        let (long, short) = (self, rhs);
+        let mut carry = 0;
+        let mut pos_last_non_zero = 0;
+        for i in 0..long.len() {
+            let (mut sum, mut tmp_carry) = long.digits[i].overflowing_sub(carry);
+            carry = tmp_carry as u64;
+
+            if i < short.len() {
+                (sum, tmp_carry) = sum.overflowing_sub(short.digits[i]);
+                carry += tmp_carry as u64;
+            }
+
+            if sum != 0 {
+                pos_last_non_zero = i;
+            }
+
+            long.digits[i] = sum;
+        }
+        long.pos = pos_last_non_zero;
     }
 
     pub fn sub_ref(&self, rhs: &Self) -> Self {
@@ -363,6 +405,18 @@ impl<const NUM_DIGITS: usize> BignumFast<NUM_DIGITS> {
         }
         let (_, r) = t.div_with_remainder(modulus);
         r
+    }
+
+    pub fn gcd(mut a: Self, mut b: Self) -> Self {
+        while a != b {
+            if a > b {
+                a.sub_assign_ref(&b);
+            } else {
+                b.sub_assign_ref(&a);
+            }
+        }
+
+        return a;
     }
 }
 
@@ -582,6 +636,12 @@ impl<const NUM_DIGITS: usize> std::ops::Sub for BignumFast<NUM_DIGITS> {
     }
 }
 
+impl<const NUM_DIGITS: usize> std::ops::SubAssign for BignumFast<NUM_DIGITS> {
+    fn sub_assign(&mut self, rhs: Self) {
+        self.sub_assign_ref(&rhs);
+    }
+}
+
 impl<const NUM_DIGITS: usize> std::ops::Mul for BignumFast<NUM_DIGITS> {
     type Output = Self;
 
@@ -648,7 +708,7 @@ mod tests {
 
     #[test]
     fn hex_string() {
-        for (s, p) in [
+        for (s, _p) in [
             ("0x11abcdef", 3),
             ("0x1abcdef", 3),
             ("0xabcdef", 2),
@@ -798,6 +858,28 @@ mod tests {
             check_pos(&res_big);
 
             assert_eq!(res, res_big);
+        }
+    }
+
+    #[test]
+    fn subtraction_assign() {
+        for (a, b) in get_arithmatik_test_cases() {
+            let (a, b) = match a >= b {
+                true => (a, b),
+                false => (b, a),
+            };
+
+            let mut big_a: BignumFast<N> = BignumFast::from(a);
+            check_pos(&big_a);
+            let big_b: BignumFast<N> = BignumFast::from(b);
+            check_pos(&big_b);
+
+            let res: BignumFast<N> = BignumFast::from(a - b);
+            check_pos(&res);
+            big_a -= big_b;
+            check_pos(&big_a);
+
+            assert_eq!(res, big_a);
         }
     }
 
@@ -952,6 +1034,24 @@ mod tests {
             check_pos(&a);
 
             assert_eq!(a, big_a);
+        }
+    }
+
+    #[test]
+    fn gcd_test() {
+        for (a, b, c) in [
+            (18, 24, 6),
+            (12375, 8975, 25),
+            (0xaabbcc, 0xddeeff, 0x99),
+            (0xaabb, 0xddee, 0x33),
+        ] {
+            let a: BignumFast<N> = BignumFast::from(a);
+            let b = BignumFast::from(b);
+            let c = BignumFast::from(c);
+
+            let res = BignumFast::gcd(a, b);
+
+            assert_eq!(res, c);
         }
     }
 }
