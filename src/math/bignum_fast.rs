@@ -1,4 +1,4 @@
-use std::ops::Deref;
+use std::{fs::File, io::Read, ops::Deref};
 
 #[derive(Debug, Clone)]
 pub struct BignumFast<const NUM_DIGITS: usize> {
@@ -47,6 +47,27 @@ impl<const NUM_DIGITS: usize> BignumFast<NUM_DIGITS> {
 
     pub fn len(&self) -> usize {
         self.pos + 1
+    }
+
+    pub fn generate_random() -> Self {
+        let mut file = File::open("/dev/urandom")
+            .expect("Number generation failed! Could not open /dev/urandom");
+        let mut bn = Self::new();
+
+        let mut buf = [0u8; 8];
+        for i in 0..NUM_DIGITS {
+            file.read_exact(&mut buf)
+                .expect("Number generation failed! Could not read from /dev/urandom");
+            let tmp = u64::from_be_bytes(buf);
+
+            if tmp != 0 {
+                bn.pos = i;
+            }
+
+            bn.digits[i] = tmp;
+        }
+
+        bn
     }
 
     pub fn from_big_endian(value: &[u8]) -> Option<Self> {
@@ -416,7 +437,7 @@ impl<const NUM_DIGITS: usize> BignumFast<NUM_DIGITS> {
             }
         }
 
-        return a;
+        a
     }
 }
 
