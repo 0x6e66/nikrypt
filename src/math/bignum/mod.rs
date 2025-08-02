@@ -69,12 +69,10 @@ impl Bignum {
                 leading_zeros = false;
             }
 
-            res.push_str(&format!("{:02x}", b));
+            res.push_str(&format!("{:016x}", b));
         }
 
-        if let Some(tmp) = res.strip_prefix('0') {
-            res = tmp.to_string();
-        }
+        let res = res.trim_start_matches('0').to_string();
 
         format!("0x{}", res)
     }
