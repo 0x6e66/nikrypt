@@ -4,6 +4,7 @@ mod comparison;
 mod division;
 mod multiplication;
 mod pow;
+pub mod prime;
 mod random;
 mod subtraction;
 
