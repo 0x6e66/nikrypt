@@ -36,4 +36,16 @@ impl Bignum {
 
         bn
     }
+
+    pub fn generate_random_prime(bits: usize) -> Self {
+        let mut bn = Bignum::generate_random(bits);
+        bn.set_bit(0);
+
+        while !bn.is_prime() {
+            let mut bn = Bignum::generate_random(bits);
+            bn.set_bit(0);
+        }
+
+        bn
+    }
 }
