@@ -28,7 +28,7 @@ impl Bignum {
 
         let test = 1 << 63;
         while (tmp & test) == 0 {
-            tmp = tmp << 1;
+            tmp <<= 1;
             bits -= 1;
         }
 
@@ -120,7 +120,7 @@ impl Bignum {
         }
     }
 
-    pub fn gcd(mut self, mut b: Self) -> Self {
+    pub fn gcd(self, mut b: Self) -> Self {
         let mut a = self;
         while a != b {
             if a > b {
@@ -150,6 +150,7 @@ impl From<u128> for Bignum {
     }
 }
 
+#[allow(dead_code)]
 fn get_test_cases() -> Vec<(u128, u128)> {
     let mut test_cases = vec![(0, 0), (0, 0xa), (0xa, 0)];
     let step_size = 0xffffffffffedcba;

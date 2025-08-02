@@ -15,7 +15,7 @@ impl Bignum {
         let mut digits = Vec::new();
 
         let mut buf = [0u8; 8];
-        for i in 0..num_digits {
+        for _ in 0..num_digits {
             f.read_exact(&mut buf)
                 .expect("Could not read from file /dev/urandom");
             let tmp = u64::from_be_bytes(buf);
