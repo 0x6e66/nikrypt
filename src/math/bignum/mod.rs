@@ -21,6 +21,19 @@ impl Bignum {
         self.digits.len()
     }
 
+    pub fn len_bits(&self) -> usize {
+        let mut bits = self.len() * 64;
+        let mut tmp = *self.digits.last().unwrap();
+
+        let test = 1 << 63;
+        while (tmp & test) == 0 {
+            tmp = tmp << 1;
+            bits -= 1;
+        }
+
+        bits
+    }
+
     pub fn set_value(&mut self, value: u64) {
         self.digits = vec![value];
     }
@@ -106,6 +119,19 @@ impl Bignum {
         if self.digits.is_empty() {
             self.digits.push(0u64);
         }
+    }
+
+    pub fn gcd(mut self, mut b: Self) -> Self {
+        let mut a = self;
+        while a != b {
+            if a > b {
+                a = a.sub_ref(&b);
+            } else {
+                b = b.sub_ref(&a);
+            }
+        }
+
+        a
     }
 }
 
