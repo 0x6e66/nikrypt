@@ -100,12 +100,13 @@ impl std::ops::Shl<usize> for Bignum {
 mod test {
     use crate::math::bignum::Bignum;
 
+    const BASE: u128 = 0xabcedefabcedefabcedefabcedefabcd;
+
     #[test]
     fn shift_right() {
-        let base = 0xabcedef;
         let mut test_cases: Vec<(u128, usize)> = vec![];
-        for i in 0..127 {
-            test_cases.push((base, i));
+        for i in 0..128 {
+            test_cases.push((BASE, i));
         }
 
         for (a, b) in test_cases {
@@ -120,9 +121,9 @@ mod test {
 
     #[test]
     fn shift_left() {
-        let base = 0xabcedef;
+        let base = 0xabcedefabcedefabcede;
         let mut test_cases: Vec<(u128, usize)> = vec![];
-        for i in 0..95 {
+        for i in 0..(12 * 4) {
             test_cases.push((base, i));
         }
 
@@ -138,10 +139,9 @@ mod test {
 
     #[test]
     fn get_bit() {
-        let base = 0xabcedef;
         let mut test_cases: Vec<(u128, usize)> = vec![];
-        for i in 0..127 {
-            test_cases.push((base, i));
+        for i in 0..128 {
+            test_cases.push((BASE, i));
         }
 
         for (a, b) in test_cases {
@@ -156,10 +156,9 @@ mod test {
 
     #[test]
     fn set_bit() {
-        let base = 0xabcedef;
         let mut test_cases: Vec<(u128, usize)> = vec![];
-        for i in 0..127 {
-            test_cases.push((base, i));
+        for i in 0..128 {
+            test_cases.push((BASE, i));
         }
 
         for (mut a, b) in test_cases {
@@ -175,10 +174,9 @@ mod test {
 
     #[test]
     fn unset_bit() {
-        let base = 0xabcedef;
         let mut test_cases: Vec<(u128, usize)> = vec![];
-        for i in 0..127 {
-            test_cases.push((base, i));
+        for i in 0..128 {
+            test_cases.push((BASE, i));
         }
 
         for (mut a, b) in test_cases {
@@ -194,10 +192,9 @@ mod test {
 
     #[test]
     fn toggle_bit() {
-        let base = 0xabcedef;
         let mut test_cases: Vec<(u128, usize)> = vec![];
-        for i in 0..127 {
-            test_cases.push((base, i));
+        for i in 0..128 {
+            test_cases.push((BASE, i));
         }
 
         for (mut a, b) in test_cases {

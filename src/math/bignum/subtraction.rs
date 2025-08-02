@@ -50,11 +50,10 @@ mod test {
 
     #[test]
     fn subtraction() {
-        for (a, b) in get_test_cases() {
-            let (a, b) = match a >= b {
-                true => (a, b),
-                false => (b, a),
-            };
+        for (mut a, mut b) in get_test_cases() {
+            if a < b {
+                (a, b) = (b, a);
+            }
 
             let big_a = Bignum::from(a);
             let big_b = Bignum::from(b);
@@ -69,11 +68,12 @@ mod test {
     #[test]
     #[should_panic]
     fn subtraction_panic() {
-        for (a, b) in get_test_cases() {
-            let (a, b) = match a > b {
-                false => (a, b),
-                true => (b, a),
-            };
+        for (mut a, mut b) in get_test_cases() {
+            if a > b {
+                (a, b) = (b, a);
+            } else if a == b {
+                continue;
+            }
 
             let big_a = Bignum::from(a);
             let big_b = Bignum::from(b);
