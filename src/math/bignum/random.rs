@@ -42,7 +42,7 @@ impl Bignum {
         bn.set_bit(0);
 
         while !bn.is_prime() {
-            let mut bn = Bignum::generate_random(bits);
+            bn = Bignum::generate_random(bits);
             bn.set_bit(0);
         }
 

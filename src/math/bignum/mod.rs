@@ -140,6 +140,12 @@ impl Default for Bignum {
     }
 }
 
+impl std::fmt::Display for Bignum {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.to_hex_string())
+    }
+}
+
 impl From<u128> for Bignum {
     fn from(value: u128) -> Self {
         let mut res = Self {
