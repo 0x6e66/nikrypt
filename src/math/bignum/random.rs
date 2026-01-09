@@ -3,6 +3,7 @@ use std::io::Read;
 use crate::math::bignum::Bignum;
 
 impl Bignum {
+    /// random BN will always be positive
     pub fn generate_random(bits: usize) -> Self {
         if bits == 0 {
             panic!("Can't create Bignum with 0 bits. `bits` has to be > 0");
@@ -31,12 +32,16 @@ impl Bignum {
             digits.push(tmp);
         }
 
-        let mut bn = Self { digits };
+        let mut bn = Self {
+            digits,
+            sign: false,
+        };
         bn.strip();
 
         bn
     }
 
+    /// random prime will always be positive
     pub fn generate_random_prime(bits: usize) -> Self {
         let mut bn = Bignum::generate_random(bits);
         bn.set_bit(0);

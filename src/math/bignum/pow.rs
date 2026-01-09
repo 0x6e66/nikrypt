@@ -6,6 +6,13 @@ impl Bignum {
         let mut x = self;
         let mut n = other;
 
+        if n.is_signed() {
+            panic!("Attempted potentiation with negative exponent. Floating point operations are not supported.");
+        }
+
+        let sign = x.sign;
+        x.unset_sign();
+
         let one = 1.into();
         let two = 2.into();
 
@@ -23,12 +30,21 @@ impl Bignum {
             (n, _) = n.div_with_remainder(&two);
         }
 
-        x * y
+        let mut res = x * y;
+        res.sign = sign;
+
+        res
     }
 
     pub fn pow_mod(self, exponent: Self, modulus: &Self) -> Self {
         let mut base = self;
         let mut exp = exponent;
+
+        if exp.is_signed() {
+            panic!("Attempted potentiation with negative exponent. Floating point operations are not supported.");
+        }
+
+        let sign = base.sign;
 
         let mut t = Self::from(1);
         while !exp.is_zero() {
@@ -39,7 +55,9 @@ impl Bignum {
             exp = exp >> 1;
         }
 
-        let (_, r) = t.div_with_remainder(modulus);
+        let (_, mut r) = t.div_with_remainder(modulus);
+        r.sign = sign;
+
         r
     }
 }

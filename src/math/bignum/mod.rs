@@ -2,20 +2,25 @@ mod addition;
 mod bits;
 mod comparison;
 mod division;
+mod euclid;
 mod multiplication;
 mod pow;
-pub mod prime;
+mod prime;
 mod random;
 mod subtraction;
 
 #[derive(Debug, Clone)]
 pub struct Bignum {
     digits: Vec<u64>,
+    sign: bool,
 }
 
 impl Bignum {
     pub fn new() -> Self {
-        Self { digits: vec![0] }
+        Self {
+            digits: vec![0],
+            sign: false,
+        }
     }
 
     pub fn len(&self) -> usize {
@@ -37,14 +42,57 @@ impl Bignum {
 
     pub fn set_value(&mut self, value: u64) {
         self.digits = vec![value];
+        self.sign = false;
     }
 
     pub fn is_zero(&self) -> bool {
         self.digits.len() == 1 && self.digits[0] == 0
     }
 
+    pub fn set_zero(&mut self) {
+        self.digits = vec![0];
+        self.sign = false;
+    }
+
+    pub fn zero() -> Self {
+        Self {
+            digits: vec![0],
+            sign: false,
+        }
+    }
+
     pub fn is_one(&self) -> bool {
-        self.digits.len() == 1 && self.digits[0] == 1
+        self.digits.len() == 1 && self.digits[0] == 1 && !self.sign
+    }
+
+    pub fn set_one(&mut self) {
+        self.digits = vec![1];
+        self.sign = false;
+    }
+
+    pub fn one() -> Self {
+        Self {
+            digits: vec![1],
+            sign: false,
+        }
+    }
+
+    pub fn toggle_sign(&mut self) {
+        if !self.is_zero() {
+            self.sign = !self.sign
+        }
+    }
+
+    pub fn unset_sign(&mut self) {
+        self.sign = false
+    }
+
+    pub fn set_sign(&mut self) {
+        self.sign = true
+    }
+
+    pub fn is_signed(&self) -> bool {
+        self.sign
     }
 
     pub fn is_empty(&self) -> bool {
@@ -75,11 +123,18 @@ impl Bignum {
 
         let res = res.trim_start_matches('0').to_string();
 
-        format!("0x{}", res)
+        if self.sign {
+            format!("-0x{}", res)
+        } else {
+            format!("0x{}", res)
+        }
     }
 
     pub fn try_from_hex_string(t: &str) -> Result<Self, std::num::ParseIntError> {
-        let s = t.trim_start_matches("0x");
+        let mut sign = t.starts_with("-0x");
+
+        let s = t.trim_start_matches("-");
+        let s = s.trim_start_matches("0x");
         let s = s.trim_start_matches('0');
 
         let mut vec = vec![];
@@ -97,7 +152,11 @@ impl Bignum {
             vec.push(b);
         }
 
-        let mut b = Self { digits: vec };
+        if vec == [0] || vec.is_empty() {
+            sign = false;
+        }
+
+        let mut b = Self { digits: vec, sign };
         b.strip();
 
         Ok(b)
@@ -116,21 +175,16 @@ impl Bignum {
         self.digits.resize(self.digits.len() - count, 0u64);
 
         if self.digits.is_empty() {
-            self.digits.push(0u64);
+            self.set_zero();
         }
     }
+}
 
-    pub fn gcd(self, mut b: Self) -> Self {
-        let mut a = self;
-        while a != b {
-            if a > b {
-                a = a.sub_ref(&b);
-            } else {
-                b = b.sub_ref(&a);
-            }
-        }
-
-        a
+impl std::ops::Neg for Bignum {
+    type Output = Self;
+    fn neg(mut self) -> Self::Output {
+        self.toggle_sign();
+        self
     }
 }
 
@@ -150,6 +204,7 @@ impl From<u128> for Bignum {
     fn from(value: u128) -> Self {
         let mut res = Self {
             digits: vec![value as u64, (value >> 64) as u64],
+            sign: false,
         };
         res.strip();
         res
@@ -181,6 +236,10 @@ mod tests {
             "0x1234124124590856b",
             "0x0",
             "0x1",
+            "-0xabcdeddedbed12983075980123",
+            "-0xdeadbeef",
+            "-0x1234124124590856b",
+            "-0x1",
         ] {
             let bn = Bignum::try_from_hex_string(s).unwrap();
 

@@ -1,7 +1,14 @@
+use std::cmp::Ordering;
+
 use crate::math::bignum::Bignum;
 
 impl PartialEq for Bignum {
+    // TODO: maybe derive Eq on Bignum
     fn eq(&self, other: &Self) -> bool {
+        if self.sign != other.sign {
+            return false;
+        }
+
         if self.digits.len() != other.digits.len() {
             return false;
         }
@@ -16,8 +23,9 @@ impl PartialEq for Bignum {
     }
 }
 
-impl PartialOrd for Bignum {
-    fn lt(&self, other: &Self) -> bool {
+impl Bignum {
+    // treats both BNs as positive
+    fn lt_internal(&self, other: &Self) -> bool {
         if self.digits.len() != other.digits.len() {
             return self.digits.len().lt(&other.digits.len());
         }
@@ -31,7 +39,8 @@ impl PartialOrd for Bignum {
         false
     }
 
-    fn le(&self, other: &Self) -> bool {
+    // treats both BNs as positive
+    fn le_internal(&self, other: &Self) -> bool {
         if self.digits.len() != other.digits.len() {
             return self.digits.len().lt(&other.digits.len());
         }
@@ -45,7 +54,8 @@ impl PartialOrd for Bignum {
         true
     }
 
-    fn gt(&self, other: &Self) -> bool {
+    // treats both BNs as positive
+    pub(crate) fn gt_internal(&self, other: &Self) -> bool {
         if self.digits.len() != other.digits.len() {
             return self.digits.len().gt(&other.digits.len());
         }
@@ -59,7 +69,8 @@ impl PartialOrd for Bignum {
         false
     }
 
-    fn ge(&self, other: &Self) -> bool {
+    // treats both BNs as positive
+    fn ge_internal(&self, other: &Self) -> bool {
         if self.digits.len() != other.digits.len() {
             return self.digits.len().gt(&other.digits.len());
         }
@@ -73,7 +84,8 @@ impl PartialOrd for Bignum {
         true
     }
 
-    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+    // treats both BNs as positive
+    fn partial_cmp_internal(&self, other: &Self) -> Option<Ordering> {
         if self.digits.len() != other.digits.len() {
             return Some(self.digits.len().cmp(&other.digits.len()));
         }
@@ -84,7 +96,78 @@ impl PartialOrd for Bignum {
             }
         }
 
-        Some(std::cmp::Ordering::Equal)
+        Some(Ordering::Equal)
+    }
+}
+
+impl PartialOrd for Bignum {
+    fn lt(&self, other: &Self) -> bool {
+        match (self.sign, other.sign) {
+            // ( x) , ( y)
+            (false, false) => Self::lt_internal(self, other),
+            // ( x) , (-y)
+            (false, true) => false,
+            // (-x) , ( y)
+            (true, false) => true,
+            // (-x) , (-y)
+            (true, true) => !Self::lt_internal(self, other),
+        }
+    }
+
+    fn le(&self, other: &Self) -> bool {
+        match (self.sign, other.sign) {
+            // ( x) , ( y)
+            (false, false) => Self::le_internal(self, other),
+            // ( x) , (-y)
+            (false, true) => false,
+            // (-x) , ( y)
+            (true, false) => true,
+            // (-x) , (-y)
+            (true, true) => !Self::le_internal(self, other),
+        }
+    }
+
+    fn gt(&self, other: &Self) -> bool {
+        match (self.sign, other.sign) {
+            // ( x) , ( y)
+            (false, false) => Self::gt_internal(self, other),
+            // ( x) , (-y)
+            (false, true) => true,
+            // (-x) , ( y)
+            (true, false) => false,
+            // (-x) , (-y)
+            (true, true) => !Self::gt_internal(self, other),
+        }
+    }
+
+    fn ge(&self, other: &Self) -> bool {
+        match (self.sign, other.sign) {
+            // ( x) , ( y)
+            (false, false) => Self::ge_internal(self, other),
+            // ( x) , (-y)
+            (false, true) => true,
+            // (-x) , ( y)
+            (true, false) => false,
+            // (-x) , (-y)
+            (true, true) => !Self::ge_internal(self, other),
+        }
+    }
+
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        match (self.sign, other.sign) {
+            // ( x) , ( y)
+            (false, false) => Self::partial_cmp_internal(self, other),
+            // ( x) , (-y)
+            (false, true) => Some(Ordering::Greater),
+            // (-x) , ( y)
+            (true, false) => Some(Ordering::Less),
+            // (-x) , (-y)
+            (true, true) => match Self::partial_cmp_internal(self, other) {
+                Some(Ordering::Less) => Some(Ordering::Greater),
+                Some(Ordering::Greater) => Some(Ordering::Less),
+                eq_or_none => eq_or_none,
+            },
+        }
     }
 }
 

@@ -1,9 +1,8 @@
 use crate::math::bignum::Bignum;
 
 impl Bignum {
-    /// Integer division (unsigned) with remainder (https://en.wikipedia.org/wiki/Division_algorithm#Integer_division_(unsigned)_with_remainder)
-    /// returns (quotient, remainder)
-    pub fn div_with_remainder(&self, rhs: &Self) -> (Self, Self) {
+    // treats both BNs as positive
+    fn div_with_remainder_internal(&self, rhs: &Self) -> (Self, Self) {
         let mut quotient = Self::new();
         let mut remainder = Self::new();
 
@@ -24,6 +23,28 @@ impl Bignum {
         }
 
         (quotient, remainder)
+    }
+
+    /// Integer division (unsigned) with remainder (https://en.wikipedia.org/wiki/Division_algorithm#Integer_division_(unsigned)_with_remainder)
+    /// returns (quotient, remainder)
+    pub fn div_with_remainder(&self, rhs: &Self) -> (Self, Self) {
+        if rhs.is_zero() {
+            panic!("Attempted devision by 0");
+        }
+
+        let (q, r) = Self::div_with_remainder_internal(self, rhs);
+
+        // TODO: check if sign of modulus make sense
+        match (self.sign, rhs.sign) {
+            // ( x) / ( y)
+            (false, false) => (q, r),
+            // ( x) / (-y)
+            (false, true) => (-q, r),
+            // (-x) / ( y)
+            (true, false) => (-q, r),
+            // (-x) / (-y)
+            (true, true) => (q, r),
+        }
     }
 }
 

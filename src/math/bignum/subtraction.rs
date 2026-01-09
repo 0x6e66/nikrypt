@@ -1,18 +1,15 @@
 use crate::math::bignum::Bignum;
 
 impl Bignum {
-    pub fn sub_ref(&self, rhs: &Self) -> Self {
-        if self < rhs {
-            panic!(
-                "Result of subtraction would be negative.\nlhs: {}\nrhs: {}",
-                self.to_hex_string(),
-                rhs.to_hex_string()
-            );
+    // treats both BNs as positive
+    pub(crate) fn sub_ref_internal(&self, rhs: &Self) -> Self {
+        if self == rhs {
+            return Self::zero();
         }
 
-        let (long, short) = match self > rhs {
-            true => (self, rhs),
-            false => (rhs, self),
+        let (long, short, sign) = match self.gt_internal(rhs) {
+            true => (self, rhs, false),
+            false => (rhs, self, true),
         };
         let mut vec = vec![0u64; long.len()];
 
@@ -29,10 +26,26 @@ impl Bignum {
             *e = sum;
         }
 
-        let mut res = Self { digits: vec };
+        let mut res = Self { digits: vec, sign };
         res.strip();
 
         res
+    }
+
+    pub fn sub_ref(&self, rhs: &Self) -> Self {
+        match (self.sign, rhs.sign) {
+            // ( x) - ( y)
+            (false, false) => Self::sub_ref_internal(self, rhs),
+
+            // ( x) - (-y) => x + y
+            (false, true) => Self::add_ref_internal(self, rhs),
+
+            // (-x) - ( y) => -x - y => -(x+y)
+            (true, false) => -Self::add_ref_internal(self, rhs),
+
+            // (-x) - (-y) => y - x
+            (true, true) => -Self::sub_ref_internal(rhs, self),
+        }
     }
 }
 

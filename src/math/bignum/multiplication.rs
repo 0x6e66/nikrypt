@@ -6,6 +6,7 @@ impl Bignum {
         let p = self.digits.len();
         let q = other.digits.len();
         let base = u64::MAX as u128 + 1;
+        let sign = self.sign ^ other.sign;
 
         let mut product = vec![0; p + q];
 
@@ -21,7 +22,10 @@ impl Bignum {
             product[b_i + p] = carry as u64;
         }
 
-        let mut tmp = Self { digits: product };
+        let mut tmp = Self {
+            digits: product,
+            sign,
+        };
         tmp.strip();
 
         tmp
