@@ -35,16 +35,23 @@ impl Bignum {
 
 #[cfg(test)]
 mod test {
+    use std::ops::Neg;
+
     use crate::math::bignum::Bignum;
 
     #[test]
     fn extended_gcd() {
-        let a = 934354;
-        let b = 12433;
+        let a = 34354;
+        let b = 1243;
+
+        let d_real = Bignum::from(1);
+        let m_real = Bignum::from(10917);
+        let n_real = Bignum::from(395).neg();
 
         let (d, m, n) = Bignum::extended_gcd(a.into(), b.into());
 
-        dbg!(a, b, d, m, n);
-        assert!(false);
+        assert_eq!(d_real, d);
+        assert_eq!(m_real, m);
+        assert_eq!(n_real, n);
     }
 }

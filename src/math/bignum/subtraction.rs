@@ -77,22 +77,4 @@ mod test {
             assert_eq!(res, res_big);
         }
     }
-
-    #[test]
-    #[should_panic]
-    fn subtraction_panic() {
-        for (mut a, mut b) in get_test_cases() {
-            if a > b {
-                (a, b) = (b, a);
-            } else if a == b {
-                continue;
-            }
-
-            let big_a = Bignum::from(a);
-            let big_b = Bignum::from(b);
-
-            // should panic here
-            let _res_big = big_a - big_b;
-        }
-    }
 }
