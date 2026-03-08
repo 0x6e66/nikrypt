@@ -13,7 +13,7 @@ impl Bignum {
         let sign = x.sign;
         x.unset_sign();
 
-        let one = 1.into();
+        let one = Bignum::one();
         let two = 2.into();
 
         if n.is_zero() {
@@ -21,7 +21,7 @@ impl Bignum {
         }
 
         let mut y = one.clone();
-        while n > 1.into() {
+        while n > one {
             if !n.is_even() {
                 y = x.mul_ref(&y);
                 n = n.sub_ref(&one);
@@ -46,7 +46,7 @@ impl Bignum {
 
         let sign = base.sign;
 
-        let mut t = Self::from(1);
+        let mut t = Self::one();
         while !exp.is_zero() {
             if !exp.is_even() {
                 (_, t) = Self::mul_ref(&t, &base).div_with_remainder(modulus);

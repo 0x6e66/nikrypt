@@ -289,7 +289,7 @@ fn simple_prime_test(bn: &Bignum) -> bool {
 // https://nvlpubs.nist.gov/nistpubs/FIPS/NIST.FIPS.186-4.pdf Section C.3.1
 // https://en.wikipedia.org/wiki/Miller–Rabin_primality_test#Miller–Rabin_test
 fn rabin_miller_prime_test(w: &Bignum) -> bool {
-    let one = Bignum::from(1);
+    let one = Bignum::one();
 
     let w1 = w.sub_ref(&one);
 

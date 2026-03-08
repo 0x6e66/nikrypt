@@ -211,6 +211,30 @@ impl From<u128> for Bignum {
     }
 }
 
+impl From<i128> for Bignum {
+    fn from(value: i128) -> Self {
+        let sign = value < 0;
+        let value = value as u128;
+
+        let mut bn = Bignum::from(value);
+        bn.sign = sign;
+
+        bn
+    }
+}
+
+impl From<i32> for Bignum {
+    fn from(value: i32) -> Self {
+        let sign = value < 0;
+        let value = value as u128;
+
+        let mut bn = Bignum::from(value);
+        bn.sign = sign;
+
+        bn
+    }
+}
+
 #[allow(dead_code)]
 fn get_test_cases() -> Vec<(u128, u128)> {
     let mut test_cases = vec![(0, 0), (0, 0xa), (0xa, 0)];
