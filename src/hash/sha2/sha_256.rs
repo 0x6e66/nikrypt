@@ -36,29 +36,23 @@ mod const_funcs {
     }
 }
 
-// https://nvlpubs.nist.gov/nistpubs/FIPS/NIST.FIPS.180-4.pdf
-// Section 5.1.1
-fn padd_input(input: &mut Vec<u8>) {
-    let l = input.len() * 8;
+pub struct Working;
+pub struct Finalized;
 
-    // TODO: change naive implmentation of padding
-    input.push(0x80);
-    while input.len() % 64 != 56 {
-        input.push(0);
-    }
-
-    for b in l.to_be_bytes().to_vec() {
-        input.push(b);
-    }
-
-    assert_eq!(input.len() % 64, 0);
-}
-
-pub struct Hasher {
+pub struct Hasher<State = Working> {
     state: [u32; 8],
+    overflow: Vec<u8>,
+    byte_count: usize,
+    s: std::marker::PhantomData<State>,
 }
 
-impl Hasher {
+impl Default for Hasher<Working> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl Hasher<Working> {
     pub fn new() -> Self {
         Self {
             #[rustfmt::skip]
@@ -66,93 +60,144 @@ impl Hasher {
                 0x6a09e667, 0xbb67ae85, 0x3c6ef372, 0xa54ff53a,
                 0x510e527f, 0x9b05688c, 0x1f83d9ab, 0x5be0cd19,
             ],
+            overflow: vec![],
+            byte_count: 0,
+            s: std::marker::PhantomData::<Working>,
         }
     }
 
-    pub fn hash(&mut self, mut input: Vec<u8>) {
-        padd_input(&mut input);
-
-        // TODO:
-        for (i, s) in input.chunks(64).enumerate() {
-            // Parsing the Message
-            // https://nvlpubs.nist.gov/nistpubs/FIPS/NIST.FIPS.180-4.pdf
-            // Section 5.2.1
-            let m = [
-                u32::from_be_bytes([s[0], s[1], s[2], s[3]]),
-                u32::from_be_bytes([s[4], s[5], s[6], s[7]]),
-                u32::from_be_bytes([s[8], s[9], s[10], s[11]]),
-                u32::from_be_bytes([s[12], s[13], s[14], s[15]]),
-                u32::from_be_bytes([s[16], s[17], s[18], s[19]]),
-                u32::from_be_bytes([s[20], s[21], s[22], s[23]]),
-                u32::from_be_bytes([s[24], s[25], s[26], s[27]]),
-                u32::from_be_bytes([s[28], s[29], s[30], s[31]]),
-                u32::from_be_bytes([s[32], s[33], s[34], s[35]]),
-                u32::from_be_bytes([s[36], s[37], s[38], s[39]]),
-                u32::from_be_bytes([s[40], s[41], s[42], s[43]]),
-                u32::from_be_bytes([s[44], s[45], s[46], s[47]]),
-                u32::from_be_bytes([s[48], s[49], s[50], s[51]]),
-                u32::from_be_bytes([s[52], s[53], s[54], s[55]]),
-                u32::from_be_bytes([s[56], s[57], s[58], s[59]]),
-                u32::from_be_bytes([s[60], s[61], s[62], s[63]]),
-            ];
-
-            // SHA-256 Hash Computation
-            // https://nvlpubs.nist.gov/nistpubs/FIPS/NIST.FIPS.180-4.pdf
-            // Section 6.2.2
-
-            // Step 1: Prepare the message schedule
-            fn w(m: &[u32; 16], t: usize) -> u32 {
-                match t {
-                    0..=15 => m[t],
-                    16..=63 => const_funcs::sigma_small_1(w(m, t - 2))
-                        .wrapping_add(w(m, t - 7))
-                        .wrapping_add(const_funcs::sigma_small_0(w(m, t - 15)))
-                        .wrapping_add(w(m, t - 16)),
-                    64.. => unreachable!(),
+    pub fn hash(&mut self, input: &[u8]) {
+        for s in input.chunks(64) {
+            if s.len() == 64 {
+                self.inner_hash_round(s);
+            } else {
+                // reached last block that is not a full 64 bytes (512 bits)
+                self.overflow.extend_from_slice(s);
+                if self.overflow.len() >= 64 {
+                    let overflow_vec: Vec<u8> = self.overflow.drain(..64).collect();
+                    self.inner_hash_round(&overflow_vec);
                 }
+                break;
             }
-
-            // Step 2: Initialize working variables
-            let [mut a, mut b, mut c, mut d, mut e, mut f, mut g, mut h] = self.state;
-
-            // Step 3
-            for t in 0..64 {
-                let t1 = h
-                    .wrapping_add(const_funcs::sigma_big_1(e))
-                    .wrapping_add(const_funcs::ch(e, f, g))
-                    .wrapping_add(K[t])
-                    .wrapping_add(w(&m, t));
-                let t2 = const_funcs::sigma_big_0(a).wrapping_add(const_funcs::maj(a, b, c));
-                h = g;
-                g = f;
-                f = e;
-                e = d.wrapping_add(t1);
-                d = c;
-                c = b;
-                b = a;
-                a = t1.wrapping_add(t2);
-            }
-
-            // Step 4
-            self.state = [
-                a.wrapping_add(self.state[0]),
-                b.wrapping_add(self.state[1]),
-                c.wrapping_add(self.state[2]),
-                d.wrapping_add(self.state[3]),
-                e.wrapping_add(self.state[4]),
-                f.wrapping_add(self.state[5]),
-                g.wrapping_add(self.state[6]),
-                h.wrapping_add(self.state[7]),
-            ]
         }
     }
 
+    // s has to be of length 64
+    fn inner_hash_round(&mut self, s: &[u8]) {
+        assert_eq!(s.len(), 64);
+
+        // Parsing the Message
+        // https://nvlpubs.nist.gov/nistpubs/FIPS/NIST.FIPS.180-4.pdf
+        // Section 5.2.1
+        let m = [
+            u32::from_be_bytes([s[0], s[1], s[2], s[3]]),
+            u32::from_be_bytes([s[4], s[5], s[6], s[7]]),
+            u32::from_be_bytes([s[8], s[9], s[10], s[11]]),
+            u32::from_be_bytes([s[12], s[13], s[14], s[15]]),
+            u32::from_be_bytes([s[16], s[17], s[18], s[19]]),
+            u32::from_be_bytes([s[20], s[21], s[22], s[23]]),
+            u32::from_be_bytes([s[24], s[25], s[26], s[27]]),
+            u32::from_be_bytes([s[28], s[29], s[30], s[31]]),
+            u32::from_be_bytes([s[32], s[33], s[34], s[35]]),
+            u32::from_be_bytes([s[36], s[37], s[38], s[39]]),
+            u32::from_be_bytes([s[40], s[41], s[42], s[43]]),
+            u32::from_be_bytes([s[44], s[45], s[46], s[47]]),
+            u32::from_be_bytes([s[48], s[49], s[50], s[51]]),
+            u32::from_be_bytes([s[52], s[53], s[54], s[55]]),
+            u32::from_be_bytes([s[56], s[57], s[58], s[59]]),
+            u32::from_be_bytes([s[60], s[61], s[62], s[63]]),
+        ];
+
+        // SHA-256 Hash Computation
+        // https://nvlpubs.nist.gov/nistpubs/FIPS/NIST.FIPS.180-4.pdf
+        // Section 6.2.2
+
+        // Step 1: Prepare the message schedule
+        fn w(m: &[u32; 16], t: usize) -> u32 {
+            match t {
+                0..=15 => m[t],
+                16..=63 => const_funcs::sigma_small_1(w(m, t - 2))
+                    .wrapping_add(w(m, t - 7))
+                    .wrapping_add(const_funcs::sigma_small_0(w(m, t - 15)))
+                    .wrapping_add(w(m, t - 16)),
+                64.. => unreachable!(),
+            }
+        }
+
+        // Step 2: Initialize working variables
+        let [mut a, mut b, mut c, mut d, mut e, mut f, mut g, mut h] = self.state;
+
+        // Step 3
+        // for t in 0..64 {
+        for (t, k_t) in K.iter().enumerate() {
+            let t1 = h
+                .wrapping_add(const_funcs::sigma_big_1(e))
+                .wrapping_add(const_funcs::ch(e, f, g))
+                .wrapping_add(*k_t)
+                .wrapping_add(w(&m, t));
+            let t2 = const_funcs::sigma_big_0(a).wrapping_add(const_funcs::maj(a, b, c));
+            h = g;
+            g = f;
+            f = e;
+            e = d.wrapping_add(t1);
+            d = c;
+            c = b;
+            b = a;
+            a = t1.wrapping_add(t2);
+        }
+
+        // Step 4
+        self.state = [
+            a.wrapping_add(self.state[0]),
+            b.wrapping_add(self.state[1]),
+            c.wrapping_add(self.state[2]),
+            d.wrapping_add(self.state[3]),
+            e.wrapping_add(self.state[4]),
+            f.wrapping_add(self.state[5]),
+            g.wrapping_add(self.state[6]),
+            h.wrapping_add(self.state[7]),
+        ];
+
+        self.byte_count += 64;
+    }
+
+    pub fn finalize(mut self) -> Hasher<Finalized> {
+        // Padding
+        // https://nvlpubs.nist.gov/nistpubs/FIPS/NIST.FIPS.180-4.pdf
+        // Section 5.1.1
+        let total_length_bits = (self.byte_count + self.overflow.len()) * 8;
+
+        self.overflow.push(0x80);
+        while self.overflow.len() % 64 != 56 {
+            self.overflow.push(0);
+        }
+
+        for b in total_length_bits.to_be_bytes().to_vec() {
+            self.overflow.push(b);
+        }
+
+        assert_eq!(self.overflow.len() % 64, 0);
+
+        while !self.overflow.is_empty() {
+            let s: Vec<u8> = self.overflow.drain(0..64).collect();
+            self.inner_hash_round(&s);
+        }
+
+        Hasher {
+            state: self.state,
+            overflow: self.overflow,
+            byte_count: self.byte_count,
+            s: std::marker::PhantomData::<Finalized>,
+        }
+    }
+}
+
+impl Hasher<Finalized> {
     pub fn digest(&self) -> [u8; 32] {
         let tmp: Vec<u8> = self
             .state
             .into_iter()
-            .map(|a| a.to_be_bytes())
-            .flatten()
+            .flat_map(|a| a.to_be_bytes())
             .collect();
 
         let res: [u8; 32] = tmp.try_into().expect("Infallible");
