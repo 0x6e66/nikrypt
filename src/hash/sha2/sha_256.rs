@@ -113,15 +113,14 @@ impl Hasher<Working> {
         // Section 6.2.2
 
         // Step 1: Prepare the message schedule
-        fn w(m: &[u32; 16], t: usize) -> u32 {
-            match t {
-                0..=15 => m[t],
-                16..=63 => const_funcs::sigma_small_1(w(m, t - 2))
-                    .wrapping_add(w(m, t - 7))
-                    .wrapping_add(const_funcs::sigma_small_0(w(m, t - 15)))
-                    .wrapping_add(w(m, t - 16)),
-                64.. => unreachable!(),
-            }
+        let mut w = m.to_vec();
+        for i in 16..64 {
+            w.push(
+                const_funcs::sigma_small_1(w[i - 2])
+                    .wrapping_add(w[i - 7])
+                    .wrapping_add(const_funcs::sigma_small_0(w[i - 15]))
+                    .wrapping_add(w[i - 16]),
+            );
         }
 
         // Step 2: Initialize working variables
@@ -134,7 +133,7 @@ impl Hasher<Working> {
                 .wrapping_add(const_funcs::sigma_big_1(e))
                 .wrapping_add(const_funcs::ch(e, f, g))
                 .wrapping_add(*k_t)
-                .wrapping_add(w(&m, t));
+                .wrapping_add(w[t]);
             let t2 = const_funcs::sigma_big_0(a).wrapping_add(const_funcs::maj(a, b, c));
             h = g;
             g = f;
