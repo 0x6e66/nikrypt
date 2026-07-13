@@ -39,6 +39,12 @@ mod const_funcs {
 pub struct Working;
 pub struct Finalized;
 
+pub fn sha256(data: &[u8]) -> [u8; 32] {
+    let mut hasher = Hasher::new();
+    hasher.hash(data);
+    hasher.finalize().digest()
+}
+
 pub struct Hasher<State = Working> {
     state: [u32; 8],
     overflow: Vec<u8>,
