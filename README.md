@@ -8,3 +8,4 @@ This repository seeks to be a cryptography library for learning purposes. First 
     - [AES](src/crypto/aes/)
     - [SHA-256](src/hash/sha2)
     - [HMAC](src/crypto/hmac)
+    - [PBKDF2](src/crypto/pbkdf2.rs)
