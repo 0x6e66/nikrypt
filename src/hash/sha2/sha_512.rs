@@ -117,10 +117,10 @@ impl Hasher<Working> {
         // Parsing the Message
         // https://nvlpubs.nist.gov/nistpubs/FIPS/NIST.FIPS.180-4.pdf
         // Section 5.2.2
-        let mut m = [0u64; 16];
+        let mut w = [0u64; 80];
         for i in 0..16 {
             let b = 8 * i;
-            m[i] = u64::from_be_bytes([
+            w[i] = u64::from_be_bytes([
                 s[b],
                 s[b + 1],
                 s[b + 2],
@@ -129,7 +129,7 @@ impl Hasher<Working> {
                 s[b + 5],
                 s[b + 6],
                 s[b + 7],
-            ])
+            ]);
         }
 
         // SHA-256 Hash Computation
@@ -137,14 +137,11 @@ impl Hasher<Working> {
         // Section 6.4.2
 
         // Step 1: Prepare the message schedule
-        let mut w = m.to_vec();
         for i in 16..80 {
-            w.push(
-                sigma_small_1(w[i - 2])
-                    .wrapping_add(w[i - 7])
-                    .wrapping_add(sigma_small_0(w[i - 15]))
-                    .wrapping_add(w[i - 16]),
-            );
+            w[i] = sigma_small_1(w[i - 2])
+                .wrapping_add(w[i - 7])
+                .wrapping_add(sigma_small_0(w[i - 15]))
+                .wrapping_add(w[i - 16]);
         }
 
         // Step 2: Initialize working variables

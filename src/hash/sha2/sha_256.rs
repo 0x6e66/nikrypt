@@ -99,38 +99,22 @@ impl Hasher<Working> {
         // Parsing the Message
         // https://nvlpubs.nist.gov/nistpubs/FIPS/NIST.FIPS.180-4.pdf
         // Section 5.2.1
-        let m = [
-            u32::from_be_bytes([s[0], s[1], s[2], s[3]]),
-            u32::from_be_bytes([s[4], s[5], s[6], s[7]]),
-            u32::from_be_bytes([s[8], s[9], s[10], s[11]]),
-            u32::from_be_bytes([s[12], s[13], s[14], s[15]]),
-            u32::from_be_bytes([s[16], s[17], s[18], s[19]]),
-            u32::from_be_bytes([s[20], s[21], s[22], s[23]]),
-            u32::from_be_bytes([s[24], s[25], s[26], s[27]]),
-            u32::from_be_bytes([s[28], s[29], s[30], s[31]]),
-            u32::from_be_bytes([s[32], s[33], s[34], s[35]]),
-            u32::from_be_bytes([s[36], s[37], s[38], s[39]]),
-            u32::from_be_bytes([s[40], s[41], s[42], s[43]]),
-            u32::from_be_bytes([s[44], s[45], s[46], s[47]]),
-            u32::from_be_bytes([s[48], s[49], s[50], s[51]]),
-            u32::from_be_bytes([s[52], s[53], s[54], s[55]]),
-            u32::from_be_bytes([s[56], s[57], s[58], s[59]]),
-            u32::from_be_bytes([s[60], s[61], s[62], s[63]]),
-        ];
+        let mut w = [0u32; 64];
+        for i in 0..16 {
+            let b = 4 * i;
+            w[i] = u32::from_be_bytes([s[b], s[b + 1], s[b + 2], s[b + 3]]);
+        }
 
         // SHA-256 Hash Computation
         // https://nvlpubs.nist.gov/nistpubs/FIPS/NIST.FIPS.180-4.pdf
         // Section 6.2.2
 
         // Step 1: Prepare the message schedule
-        let mut w = m.to_vec();
         for i in 16..64 {
-            w.push(
-                sigma_small_1(w[i - 2])
-                    .wrapping_add(w[i - 7])
-                    .wrapping_add(sigma_small_0(w[i - 15]))
-                    .wrapping_add(w[i - 16]),
-            );
+            w[i] = sigma_small_1(w[i - 2])
+                .wrapping_add(w[i - 7])
+                .wrapping_add(sigma_small_0(w[i - 15]))
+                .wrapping_add(w[i - 16]);
         }
 
         // Step 2: Initialize working variables
