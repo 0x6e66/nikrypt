@@ -1,6 +1,4 @@
-use crate::hash::sha2::const_functions::{
-    ch, maj, sigma_big_0_256, sigma_big_1_256, sigma_small_0_256, sigma_small_1_256,
-};
+use crate::hash::sha2::{Finalized, Working};
 
 // https://nvlpubs.nist.gov/nistpubs/FIPS/NIST.FIPS.180-4.pdf
 // Section 4.2.2
@@ -15,8 +13,26 @@ pub(crate) const K: [u32; 64] = [
     0x748f82ee, 0x78a5636f, 0x84c87814, 0x8cc70208, 0x90befffa, 0xa4506ceb, 0xbef9a3f7, 0xc67178f2,
 ];
 
-pub struct Working;
-pub struct Finalized;
+// https://nvlpubs.nist.gov/nistpubs/FIPS/NIST.FIPS.180-4.pdf
+// Section 4.1.2
+fn ch(x: u32, y: u32, z: u32) -> u32 {
+    (x & y) ^ (!x & z)
+}
+fn maj(x: u32, y: u32, z: u32) -> u32 {
+    (x & y) ^ (x & z) ^ (y & z)
+}
+fn sigma_big_0(x: u32) -> u32 {
+    x.rotate_right(2) ^ x.rotate_right(13) ^ x.rotate_right(22)
+}
+fn sigma_big_1(x: u32) -> u32 {
+    x.rotate_right(6) ^ x.rotate_right(11) ^ x.rotate_right(25)
+}
+fn sigma_small_0(x: u32) -> u32 {
+    x.rotate_right(7) ^ x.rotate_right(18) ^ x >> 3
+}
+fn sigma_small_1(x: u32) -> u32 {
+    x.rotate_right(17) ^ x.rotate_right(19) ^ x >> 10
+}
 
 pub fn sha256(data: &[u8]) -> [u8; 32] {
     let mut hasher = Hasher::new();
@@ -110,9 +126,9 @@ impl Hasher<Working> {
         let mut w = m.to_vec();
         for i in 16..64 {
             w.push(
-                sigma_small_1_256(w[i - 2])
+                sigma_small_1(w[i - 2])
                     .wrapping_add(w[i - 7])
-                    .wrapping_add(sigma_small_0_256(w[i - 15]))
+                    .wrapping_add(sigma_small_0(w[i - 15]))
                     .wrapping_add(w[i - 16]),
             );
         }
@@ -121,14 +137,13 @@ impl Hasher<Working> {
         let [mut a, mut b, mut c, mut d, mut e, mut f, mut g, mut h] = self.state;
 
         // Step 3
-        // for t in 0..64 {
         for (t, k_t) in K.iter().enumerate() {
             let t1 = h
-                .wrapping_add(sigma_big_1_256(e))
+                .wrapping_add(sigma_big_1(e))
                 .wrapping_add(ch(e, f, g))
                 .wrapping_add(*k_t)
                 .wrapping_add(w[t]);
-            let t2 = sigma_big_0_256(a).wrapping_add(maj(a, b, c));
+            let t2 = sigma_big_0(a).wrapping_add(maj(a, b, c));
             h = g;
             g = f;
             f = e;

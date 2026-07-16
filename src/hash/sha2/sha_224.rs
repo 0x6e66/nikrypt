@@ -1,4 +1,4 @@
-use crate::hash::sha2::sha_256::{self, Finalized, Working};
+use crate::hash::sha2::{sha_256, Finalized, Working};
 
 pub fn sha224(data: &[u8]) -> [u8; 28] {
     let mut hasher = Hasher::new();
