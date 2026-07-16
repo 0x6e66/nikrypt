@@ -1,41 +1,55 @@
-use crate::{
-    hash::sha2::sha_256::{self, Hasher},
-    prelude::*,
-};
-
 // https://www.rfc-editor.org/info/rfc2104/#section-2
-pub fn hmac_sha256(key: &[u8], data: &[u8]) -> [u8; 32] {
-    let ipad = [0x36; 64];
-    let opad = [0x5c; 64];
 
-    let mut key = match key.len() {
-        0..=64 => key.to_vec(),
-        65.. => sha_256::sha256(key).to_vec(),
+macro_rules! impl_hmac {
+    ($sha_name:ident, $sha_hasher:ty, $digest:ident, $return: ty) => {
+        pub fn $sha_name(key: &[u8], data: &[u8]) -> $return {
+            let ipad = [0x36; 64];
+            let opad = [0x5c; 64];
+
+            let mut key = match key.len() {
+                0..=64 => key.to_vec(),
+                65.. => {
+                    let mut hasher = <$sha_hasher>::new();
+                    hasher.update(key);
+                    hasher.finalize().digest().to_vec()
+                }
+            };
+
+            // 1
+            key.resize(64, 0);
+            let key: [u8; 64] = key.try_into().expect("Infallible");
+
+            // 2
+            let tmp = crate::prelude::W(key) ^ crate::prelude::W(ipad);
+
+            // 3 + 4
+            let mut h = <$sha_hasher>::new();
+            h.update(&tmp.0);
+            h.update(data);
+            let h1 = h.finalize().digest();
+
+            // 5
+            let tmp = crate::prelude::W(key) ^ crate::prelude::W(opad);
+
+            // 6 + 7
+            let mut h = <$sha_hasher>::new();
+            h.update(&tmp.0);
+            h.update(&h1);
+
+            h.finalize().$digest()
+        }
     };
-
-    // 1
-    key.resize(64, 0);
-    let key: [u8; 64] = key.try_into().expect("Infallible");
-
-    // 2
-    let tmp = W(key) ^ W(ipad);
-
-    // 3 + 4
-    let mut h = Hasher::new();
-    h.hash(&tmp.0);
-    h.hash(data);
-    let h1 = h.finalize().digest();
-
-    // 5
-    let tmp = W(key) ^ W(opad);
-
-    // 6 + 7
-    let mut h = Hasher::new();
-    h.hash(&tmp.0);
-    h.hash(&h1);
-
-    h.finalize().digest()
 }
+
+#[rustfmt::skip]
+mod unformatted {
+    impl_hmac!(hmac_sha224, crate::hash::sha2::sha_224::Hasher, digest, [u8; 28]);
+    impl_hmac!(hmac_sha256, crate::hash::sha2::sha_256::Hasher, digest, [u8; 32]);
+
+    impl_hmac!(hmac_sha224_hex, crate::hash::sha2::sha_224::Hasher, hex_digest, String);
+    impl_hmac!(hmac_sha256_hex, crate::hash::sha2::sha_256::Hasher, hex_digest, String);
+}
+pub use unformatted::*;
 
 #[cfg(test)]
 mod tests {
@@ -48,14 +62,11 @@ mod tests {
         let key = [0xb; 20];
         let data = "Hi There".as_bytes();
 
-        let correct_result = [
-            0xb0, 0x34, 0x4c, 0x61, 0xd8, 0xdb, 0x38, 0x53, 0x5c, 0xa8, 0xaf, 0xce, 0xaf, 0x0b,
-            0xf1, 0x2b, 0x88, 0x1d, 0xc2, 0x00, 0xc9, 0x83, 0x3d, 0xa7, 0x26, 0xe9, 0x37, 0x6c,
-            0x2e, 0x32, 0xcf, 0xf7,
-        ];
-        let result = hmac_sha256(&key, data);
+        let sha224 = "896fb1128abbdf196832107cd49df33f47b4b1169912ba4f53684b22";
+        let sha256 = "b0344c61d8db38535ca8afceaf0bf12b881dc200c9833da726e9376c2e32cff7";
 
-        assert_eq!(correct_result, result);
+        assert_eq!(sha224, hmac_sha224_hex(&key, data));
+        assert_eq!(sha256, hmac_sha256_hex(&key, data));
     }
 
     #[test]
@@ -63,14 +74,11 @@ mod tests {
         let key = "Jefe".as_bytes();
         let data = "what do ya want for nothing?".as_bytes();
 
-        let correct_result = [
-            0x5b, 0xdc, 0xc1, 0x46, 0xbf, 0x60, 0x75, 0x4e, 0x6a, 0x04, 0x24, 0x26, 0x08, 0x95,
-            0x75, 0xc7, 0x5a, 0x00, 0x3f, 0x08, 0x9d, 0x27, 0x39, 0x83, 0x9d, 0xec, 0x58, 0xb9,
-            0x64, 0xec, 0x38, 0x43,
-        ];
-        let result = hmac_sha256(key, data);
+        let sha224 = "a30e01098bc6dbbf45690f3a7e9e6d0f8bbea2a39e6148008fd05e44";
+        let sha256 = "5bdcc146bf60754e6a042426089575c75a003f089d2739839dec58b964ec3843";
 
-        assert_eq!(correct_result, result);
+        assert_eq!(sha224, hmac_sha224_hex(&key, data));
+        assert_eq!(sha256, hmac_sha256_hex(&key, data));
     }
 
     #[test]
@@ -78,14 +86,11 @@ mod tests {
         let key = [0xaa; 20];
         let data = [0xdd; 50];
 
-        let correct_result = [
-            0x77, 0x3e, 0xa9, 0x1e, 0x36, 0x80, 0x0e, 0x46, 0x85, 0x4d, 0xb8, 0xeb, 0xd0, 0x91,
-            0x81, 0xa7, 0x29, 0x59, 0x09, 0x8b, 0x3e, 0xf8, 0xc1, 0x22, 0xd9, 0x63, 0x55, 0x14,
-            0xce, 0xd5, 0x65, 0xfe,
-        ];
-        let result = hmac_sha256(&key, &data);
+        let sha224 = "7fb3cb3588c6c1f6ffa9694d7d6ad2649365b0c1f65d69d1ec8333ea";
+        let sha256 = "773ea91e36800e46854db8ebd09181a72959098b3ef8c122d9635514ced565fe";
 
-        assert_eq!(correct_result, result);
+        assert_eq!(sha224, hmac_sha224_hex(&key, &data));
+        assert_eq!(sha256, hmac_sha256_hex(&key, &data));
     }
 
     #[test]
@@ -96,14 +101,11 @@ mod tests {
         ];
         let data = [0xcd; 50];
 
-        let correct_result = [
-            0x82, 0x55, 0x8a, 0x38, 0x9a, 0x44, 0x3c, 0x0e, 0xa4, 0xcc, 0x81, 0x98, 0x99, 0xf2,
-            0x08, 0x3a, 0x85, 0xf0, 0xfa, 0xa3, 0xe5, 0x78, 0xf8, 0x07, 0x7a, 0x2e, 0x3f, 0xf4,
-            0x67, 0x29, 0x66, 0x5b,
-        ];
-        let result = hmac_sha256(&key, &data);
+        let sha224 = "6c11506874013cac6a2abc1bb382627cec6a90d86efc012de7afec5a";
+        let sha256 = "82558a389a443c0ea4cc819899f2083a85f0faa3e578f8077a2e3ff46729665b";
 
-        assert_eq!(correct_result, result);
+        assert_eq!(sha224, hmac_sha224_hex(&key, &data));
+        assert_eq!(sha256, hmac_sha256_hex(&key, &data));
     }
 
     #[test]
@@ -111,13 +113,11 @@ mod tests {
         let key = [0x0c; 20];
         let data = "Test With Truncation".as_bytes();
 
-        let correct_result = [
-            0xa3, 0xb6, 0x16, 0x74, 0x73, 0x10, 0x0e, 0xe0, 0x6e, 0x0c, 0x79, 0x6c, 0x29, 0x55,
-            0x55, 0x2b,
-        ];
-        let result = &hmac_sha256(&key, &data)[..16];
+        let sha224 = "0e2aea68a90c8d37c988bcdb9fca6fa8";
+        let sha256 = "a3b6167473100ee06e0c796c2955552b";
 
-        assert_eq!(correct_result, result);
+        assert_eq!(sha224, &hmac_sha224_hex(&key, &data)[..32]);
+        assert_eq!(sha256, &hmac_sha256_hex(&key, &data)[..32]);
     }
 
     #[test]
@@ -125,14 +125,11 @@ mod tests {
         let key = [0xaa; 131];
         let data = "Test Using Larger Than Block-Size Key - Hash Key First".as_bytes();
 
-        let correct_result = [
-            0x60, 0xe4, 0x31, 0x59, 0x1e, 0xe0, 0xb6, 0x7f, 0x0d, 0x8a, 0x26, 0xaa, 0xcb, 0xf5,
-            0xb7, 0x7f, 0x8e, 0x0b, 0xc6, 0x21, 0x37, 0x28, 0xc5, 0x14, 0x05, 0x46, 0x04, 0x0f,
-            0x0e, 0xe3, 0x7f, 0x54,
-        ];
-        let result = hmac_sha256(&key, data);
+        let sha224 = "95e9a0db962095adaebe9b2d6f0dbce2d499f112f2d2b7273fa6870e";
+        let sha256 = "60e431591ee0b67f0d8a26aacbf5b77f8e0bc6213728c5140546040f0ee37f54";
 
-        assert_eq!(correct_result, result);
+        assert_eq!(sha224, hmac_sha224_hex(&key, &data));
+        assert_eq!(sha256, hmac_sha256_hex(&key, &data));
     }
 
     #[test]
@@ -140,13 +137,10 @@ mod tests {
         let key = [0xaa; 131];
         let data = "This is a test using a larger than block-size key and a larger than block-size data. The key needs to be hashed before being used by the HMAC algorithm.".as_bytes();
 
-        let correct_result = [
-            0x9b, 0x09, 0xff, 0xa7, 0x1b, 0x94, 0x2f, 0xcb, 0x27, 0x63, 0x5f, 0xbc, 0xd5, 0xb0,
-            0xe9, 0x44, 0xbf, 0xdc, 0x63, 0x64, 0x4f, 0x07, 0x13, 0x93, 0x8a, 0x7f, 0x51, 0x53,
-            0x5c, 0x3a, 0x35, 0xe2,
-        ];
-        let result = hmac_sha256(&key, data);
+        let sha224 = "3a854166ac5d9f023f54d517d0b39dbd946770db9c2b95c9f6f565d1";
+        let sha256 = "9b09ffa71b942fcb27635fbcd5b0e944bfdc63644f0713938a7f51535c3a35e2";
 
-        assert_eq!(correct_result, result);
+        assert_eq!(sha224, hmac_sha224_hex(&key, &data));
+        assert_eq!(sha256, hmac_sha256_hex(&key, &data));
     }
 }
