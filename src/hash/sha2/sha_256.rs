@@ -1,6 +1,10 @@
+use crate::hash::sha2::const_functions::{
+    ch, maj, sigma_big_0_256, sigma_big_1_256, sigma_small_0_256, sigma_small_1_256,
+};
+
 // https://nvlpubs.nist.gov/nistpubs/FIPS/NIST.FIPS.180-4.pdf
 // Section 4.2.2
-const K: [u32; 64] = [
+pub(crate) const K: [u32; 64] = [
     0x428a2f98, 0x71374491, 0xb5c0fbcf, 0xe9b5dba5, 0x3956c25b, 0x59f111f1, 0x923f82a4, 0xab1c5ed5,
     0xd807aa98, 0x12835b01, 0x243185be, 0x550c7dc3, 0x72be5d74, 0x80deb1fe, 0x9bdc06a7, 0xc19bf174,
     0xe49b69c1, 0xefbe4786, 0x0fc19dc6, 0x240ca1cc, 0x2de92c6f, 0x4a7484aa, 0x5cb0a9dc, 0x76f988da,
@@ -11,42 +15,23 @@ const K: [u32; 64] = [
     0x748f82ee, 0x78a5636f, 0x84c87814, 0x8cc70208, 0x90befffa, 0xa4506ceb, 0xbef9a3f7, 0xc67178f2,
 ];
 
-// https://nvlpubs.nist.gov/nistpubs/FIPS/NIST.FIPS.180-4.pdf
-// Section 4.1.2
-mod const_funcs {
-    pub fn ch(x: u32, y: u32, z: u32) -> u32 {
-        (x & y) ^ (!x & z)
-    }
-
-    pub fn maj(x: u32, y: u32, z: u32) -> u32 {
-        (x & y) ^ (x & z) ^ (y & z)
-    }
-
-    pub fn sigma_big_0(x: u32) -> u32 {
-        x.rotate_right(2) ^ x.rotate_right(13) ^ x.rotate_right(22)
-    }
-    pub fn sigma_big_1(x: u32) -> u32 {
-        x.rotate_right(6) ^ x.rotate_right(11) ^ x.rotate_right(25)
-    }
-    pub fn sigma_small_0(x: u32) -> u32 {
-        x.rotate_right(7) ^ x.rotate_right(18) ^ x >> 3
-    }
-    pub fn sigma_small_1(x: u32) -> u32 {
-        x.rotate_right(17) ^ x.rotate_right(19) ^ x >> 10
-    }
-}
-
 pub struct Working;
 pub struct Finalized;
 
 pub fn sha256(data: &[u8]) -> [u8; 32] {
     let mut hasher = Hasher::new();
-    hasher.hash(data);
+    hasher.update(data);
     hasher.finalize().digest()
 }
 
+pub fn sha256_hex(data: &[u8]) -> String {
+    let mut hasher = Hasher::new();
+    hasher.update(data);
+    hasher.finalize().hex_digest()
+}
+
 pub struct Hasher<State = Working> {
-    state: [u32; 8],
+    pub(crate) state: [u32; 8],
     overflow: Vec<u8>,
     byte_count: usize,
     s: std::marker::PhantomData<State>,
@@ -60,19 +45,22 @@ impl Default for Hasher<Working> {
 
 impl Hasher<Working> {
     pub fn new() -> Self {
+        Self::new_internal([
+            0x6a09e667, 0xbb67ae85, 0x3c6ef372, 0xa54ff53a, 0x510e527f, 0x9b05688c, 0x1f83d9ab,
+            0x5be0cd19,
+        ])
+    }
+
+    pub(crate) fn new_internal(state: [u32; 8]) -> Self {
         Self {
-            #[rustfmt::skip]
-            state: [
-                0x6a09e667, 0xbb67ae85, 0x3c6ef372, 0xa54ff53a,
-                0x510e527f, 0x9b05688c, 0x1f83d9ab, 0x5be0cd19,
-            ],
+            state,
             overflow: vec![],
             byte_count: 0,
             s: std::marker::PhantomData::<Working>,
         }
     }
 
-    pub fn hash(&mut self, input: &[u8]) {
+    pub fn update(&mut self, input: &[u8]) {
         for s in input.chunks(64) {
             if s.len() == 64 {
                 self.inner_hash_round(s);
@@ -122,9 +110,9 @@ impl Hasher<Working> {
         let mut w = m.to_vec();
         for i in 16..64 {
             w.push(
-                const_funcs::sigma_small_1(w[i - 2])
+                sigma_small_1_256(w[i - 2])
                     .wrapping_add(w[i - 7])
-                    .wrapping_add(const_funcs::sigma_small_0(w[i - 15]))
+                    .wrapping_add(sigma_small_0_256(w[i - 15]))
                     .wrapping_add(w[i - 16]),
             );
         }
@@ -136,11 +124,11 @@ impl Hasher<Working> {
         // for t in 0..64 {
         for (t, k_t) in K.iter().enumerate() {
             let t1 = h
-                .wrapping_add(const_funcs::sigma_big_1(e))
-                .wrapping_add(const_funcs::ch(e, f, g))
+                .wrapping_add(sigma_big_1_256(e))
+                .wrapping_add(ch(e, f, g))
                 .wrapping_add(*k_t)
                 .wrapping_add(w[t]);
-            let t2 = const_funcs::sigma_big_0(a).wrapping_add(const_funcs::maj(a, b, c));
+            let t2 = sigma_big_0_256(a).wrapping_add(maj(a, b, c));
             h = g;
             g = f;
             f = e;
@@ -217,5 +205,45 @@ impl Hasher<Finalized> {
         }
 
         res
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn case1() {
+        let input = "test".as_bytes();
+        let hash = sha256_hex(input);
+        let correct_hash = "9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08";
+
+        assert_eq!(correct_hash, hash);
+    }
+
+    #[test]
+    fn case2() {
+        let input = "testtest".as_bytes();
+        let hash = sha256_hex(input);
+        let correct_hash = "37268335dd6931045bdcdf92623ff819a64244b53d0e746d438797349d4da578";
+
+        assert_eq!(correct_hash, hash);
+    }
+
+    #[test]
+    fn case3() {
+        let mut hasher = Hasher::new();
+        for s in [
+            "very very very very very very very very very very very very ",
+            "very very very very very very very very very very very very ",
+            "very very very very very very very very long test",
+        ] {
+            hasher.update(s.as_bytes());
+        }
+
+        let hash = hasher.finalize().hex_digest();
+        let correct_hash = "0267cd70ce42810aff67379951a9111d735c40f63eede5683413ba93b9086021";
+
+        assert_eq!(correct_hash, hash);
     }
 }
