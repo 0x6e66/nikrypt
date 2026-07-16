@@ -1,3 +1,4 @@
+pub mod sha_224;
 pub mod sha_256;
 
 // https://nvlpubs.nist.gov/nistpubs/FIPS/NIST.FIPS.180-4.pdf
