@@ -1,4 +1,4 @@
-use crate::hash::sha2::{sha_512, Finalized, Working};
+use crate::crypto::sha2::{sha_512, Finalized, Working};
 
 #[derive(Debug, PartialEq)]
 pub struct Truncation(usize);
@@ -33,7 +33,7 @@ pub struct Hasher<State = Working> {
 }
 
 fn calc_init_state(t: &Truncation) -> [u64; 8] {
-    let mut sha512_hasher = crate::hash::sha2::sha_512::Hasher::new();
+    let mut sha512_hasher = crate::crypto::sha2::sha_512::Hasher::new();
 
     let h_p = &sha512_hasher.state;
     let mut h_pp = [0u64; 8];

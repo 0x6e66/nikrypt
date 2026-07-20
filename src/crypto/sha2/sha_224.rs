@@ -1,22 +1,22 @@
-use crate::hash::sha2::{sha_512, Finalized, Working};
+use crate::crypto::sha2::{sha_256, Finalized, Working};
 
-const DIGEST_SIZE: usize = 48;
-const TRUNC_SIZE: usize = DIGEST_SIZE / (16 - 8);
+const DIGEST_SIZE: usize = 28;
+const TRUNC_SIZE: usize = DIGEST_SIZE / 4;
 
-pub fn sha384(data: &[u8]) -> [u8; DIGEST_SIZE] {
+pub fn sha224(data: &[u8]) -> [u8; DIGEST_SIZE] {
     let mut hasher = Hasher::new();
     hasher.update(data);
     hasher.finalize().digest()
 }
 
-pub fn sha384_hex(data: &[u8]) -> String {
+pub fn sha224_hex(data: &[u8]) -> String {
     let mut hasher = Hasher::new();
     hasher.update(data);
     hasher.finalize().hex_digest()
 }
 
 pub struct Hasher<State = Working> {
-    inner_hasher: sha_512::Hasher<State>,
+    inner_hasher: sha_256::Hasher<State>,
     s: std::marker::PhantomData<State>,
 }
 
@@ -28,15 +28,9 @@ impl Default for Hasher<Working> {
 
 impl Hasher<Working> {
     pub fn new() -> Self {
-        let inner_hasher = sha_512::Hasher::new_internal([
-            0xcbbb9d5dc1059ed8,
-            0x629a292a367cd507,
-            0x9159015a3070dd17,
-            0x152fecd8f70e5939,
-            0x67332667ffc00b31,
-            0x8eb44a8768581511,
-            0xdb0c2e0d64f98fa7,
-            0x47b5481dbefa4fa4,
+        let inner_hasher = sha_256::Hasher::new_internal([
+            0xc1059ed8, 0x367cd507, 0x3070dd17, 0xf70e5939, 0xffc00b31, 0x68581511, 0x64f98fa7,
+            0xbefa4fa4,
         ]);
 
         Self {
@@ -66,7 +60,7 @@ impl Hasher<Finalized> {
             .flat_map(|a| a.to_be_bytes())
             .collect();
 
-        let res: [u8; 48] = tmp.try_into().expect("Infallible");
+        let res: [u8; DIGEST_SIZE] = tmp.try_into().expect("Infallible");
         res
     }
 
@@ -74,7 +68,7 @@ impl Hasher<Finalized> {
         let mut res = String::new();
 
         for s in self.inner_hasher.state[..TRUNC_SIZE].iter() {
-            res.push_str(&format!("{s:016x}"));
+            res.push_str(&format!("{s:08x}"));
         }
 
         res
@@ -88,8 +82,8 @@ mod tests {
     #[test]
     fn case1() {
         let input = "test".as_bytes();
-        let hash = sha384_hex(input);
-        let correct_hash = "768412320f7b0aa5812fce428dc4706b3cae50e02a64caa16a782249bfe8efc4b7ef1ccb126255d196047dfedf17a0a9";
+        let hash = sha224_hex(input);
+        let correct_hash = "90a3ed9e32b2aaf4c61c410eb925426119e1a9dc53d4286ade99a809";
 
         assert_eq!(correct_hash, hash);
     }
@@ -97,8 +91,8 @@ mod tests {
     #[test]
     fn case2() {
         let input = "testtest".as_bytes();
-        let hash = sha384_hex(input);
-        let correct_hash = "40e1b690e9200dd972cb29f4526a1c6597eb9bbc06bd4a2650c34dd9424cbde0327d3f3d6898d8e456f91f21fb6805c6";
+        let hash = sha224_hex(input);
+        let correct_hash = "f617af1ca774ebbd6d23e8fe12c56d41d25a22d81e88f67c6c6ee0d4";
 
         assert_eq!(correct_hash, hash);
     }
@@ -106,14 +100,16 @@ mod tests {
     #[test]
     fn case3() {
         let mut hasher = Hasher::new();
-        let s = "opiuasdvf89pbuv4wpb98uvaw4p9buaw4vp9ubawvp49".as_bytes();
-
-        for _ in 0..10 {
-            hasher.update(s);
+        for s in [
+            "very very very very very very very very very very very very ",
+            "very very very very very very very very very very very very ",
+            "very very very very very very very very long test",
+        ] {
+            hasher.update(s.as_bytes());
         }
 
         let hash = hasher.finalize().hex_digest();
-        let correct_hash = "3a878594f665b11eee8c3d60c616ac457dfdeace1999de52b5b432e9287cb1d3445d2e18638313ff47d36c870cc079a9";
+        let correct_hash = "080f1a95d591caa1d237328aa0de0f57b640a255240918d46afe3cd9";
 
         assert_eq!(correct_hash, hash);
     }
@@ -133,7 +129,7 @@ mod tests {
         }
 
         let hash = hasher.finalize().hex_digest();
-        let correct_hash = "8b60e1429989684d2b9284f5fb5e48d4dce3405557148faf7c528bdd58fd48e77ed8d60ff315c7c83d77b71a0685331b";
+        let correct_hash = "588f317c13783238ac67936fdc5a0843c540b81f781bb0c40d073e51";
 
         assert_eq!(correct_hash, hash);
     }

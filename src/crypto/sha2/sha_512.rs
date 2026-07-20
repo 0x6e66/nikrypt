@@ -1,53 +1,66 @@
-use crate::hash::sha2::{Finalized, Working};
+use crate::crypto::sha2::{Finalized, Working};
 
 // https://nvlpubs.nist.gov/nistpubs/FIPS/NIST.FIPS.180-4.pdf
-// Section 4.2.2
-pub(crate) const K: [u32; 64] = [
-    0x428a2f98, 0x71374491, 0xb5c0fbcf, 0xe9b5dba5, 0x3956c25b, 0x59f111f1, 0x923f82a4, 0xab1c5ed5,
-    0xd807aa98, 0x12835b01, 0x243185be, 0x550c7dc3, 0x72be5d74, 0x80deb1fe, 0x9bdc06a7, 0xc19bf174,
-    0xe49b69c1, 0xefbe4786, 0x0fc19dc6, 0x240ca1cc, 0x2de92c6f, 0x4a7484aa, 0x5cb0a9dc, 0x76f988da,
-    0x983e5152, 0xa831c66d, 0xb00327c8, 0xbf597fc7, 0xc6e00bf3, 0xd5a79147, 0x06ca6351, 0x14292967,
-    0x27b70a85, 0x2e1b2138, 0x4d2c6dfc, 0x53380d13, 0x650a7354, 0x766a0abb, 0x81c2c92e, 0x92722c85,
-    0xa2bfe8a1, 0xa81a664b, 0xc24b8b70, 0xc76c51a3, 0xd192e819, 0xd6990624, 0xf40e3585, 0x106aa070,
-    0x19a4c116, 0x1e376c08, 0x2748774c, 0x34b0bcb5, 0x391c0cb3, 0x4ed8aa4a, 0x5b9cca4f, 0x682e6ff3,
-    0x748f82ee, 0x78a5636f, 0x84c87814, 0x8cc70208, 0x90befffa, 0xa4506ceb, 0xbef9a3f7, 0xc67178f2,
+// Section 4.2.3
+#[rustfmt::skip]
+pub(crate) const K: [u64; 80] = [
+    0x428a2f98d728ae22, 0x7137449123ef65cd, 0xb5c0fbcfec4d3b2f, 0xe9b5dba58189dbbc,
+    0x3956c25bf348b538, 0x59f111f1b605d019, 0x923f82a4af194f9b, 0xab1c5ed5da6d8118,
+    0xd807aa98a3030242, 0x12835b0145706fbe, 0x243185be4ee4b28c, 0x550c7dc3d5ffb4e2,
+    0x72be5d74f27b896f, 0x80deb1fe3b1696b1, 0x9bdc06a725c71235, 0xc19bf174cf692694,
+    0xe49b69c19ef14ad2, 0xefbe4786384f25e3, 0x0fc19dc68b8cd5b5, 0x240ca1cc77ac9c65,
+    0x2de92c6f592b0275, 0x4a7484aa6ea6e483, 0x5cb0a9dcbd41fbd4, 0x76f988da831153b5,
+    0x983e5152ee66dfab, 0xa831c66d2db43210, 0xb00327c898fb213f, 0xbf597fc7beef0ee4,
+    0xc6e00bf33da88fc2, 0xd5a79147930aa725, 0x06ca6351e003826f, 0x142929670a0e6e70,
+    0x27b70a8546d22ffc, 0x2e1b21385c26c926, 0x4d2c6dfc5ac42aed, 0x53380d139d95b3df,
+    0x650a73548baf63de, 0x766a0abb3c77b2a8, 0x81c2c92e47edaee6, 0x92722c851482353b,
+    0xa2bfe8a14cf10364, 0xa81a664bbc423001, 0xc24b8b70d0f89791, 0xc76c51a30654be30,
+    0xd192e819d6ef5218, 0xd69906245565a910, 0xf40e35855771202a, 0x106aa07032bbd1b8,
+    0x19a4c116b8d2d0c8, 0x1e376c085141ab53, 0x2748774cdf8eeb99, 0x34b0bcb5e19b48a8,
+    0x391c0cb3c5c95a63, 0x4ed8aa4ae3418acb, 0x5b9cca4f7763e373, 0x682e6ff3d6b2b8a3,
+    0x748f82ee5defb2fc, 0x78a5636f43172f60, 0x84c87814a1f0ab72, 0x8cc702081a6439ec,
+    0x90befffa23631e28, 0xa4506cebde82bde9, 0xbef9a3f7b2c67915, 0xc67178f2e372532b,
+    0xca273eceea26619c, 0xd186b8c721c0c207, 0xeada7dd6cde0eb1e, 0xf57d4f7fee6ed178,
+    0x06f067aa72176fba, 0x0a637dc5a2c898a6, 0x113f9804bef90dae, 0x1b710b35131c471b,
+    0x28db77f523047d84, 0x32caab7b40c72493, 0x3c9ebe0a15c9bebc, 0x431d67c49c100d4c,
+    0x4cc5d4becb3e42b6, 0x597f299cfc657e2a, 0x5fcb6fab3ad6faec, 0x6c44198c4a475817,
 ];
 
 // https://nvlpubs.nist.gov/nistpubs/FIPS/NIST.FIPS.180-4.pdf
-// Section 4.1.2
-fn ch(x: u32, y: u32, z: u32) -> u32 {
+// Section 4.1.3
+fn ch(x: u64, y: u64, z: u64) -> u64 {
     (x & y) ^ (!x & z)
 }
-fn maj(x: u32, y: u32, z: u32) -> u32 {
+fn maj(x: u64, y: u64, z: u64) -> u64 {
     (x & y) ^ (x & z) ^ (y & z)
 }
-fn sigma_big_0(x: u32) -> u32 {
-    x.rotate_right(2) ^ x.rotate_right(13) ^ x.rotate_right(22)
+fn sigma_big_0(x: u64) -> u64 {
+    x.rotate_right(28) ^ x.rotate_right(34) ^ x.rotate_right(39)
 }
-fn sigma_big_1(x: u32) -> u32 {
-    x.rotate_right(6) ^ x.rotate_right(11) ^ x.rotate_right(25)
+fn sigma_big_1(x: u64) -> u64 {
+    x.rotate_right(14) ^ x.rotate_right(18) ^ x.rotate_right(41)
 }
-fn sigma_small_0(x: u32) -> u32 {
-    x.rotate_right(7) ^ x.rotate_right(18) ^ x >> 3
+fn sigma_small_0(x: u64) -> u64 {
+    x.rotate_right(1) ^ x.rotate_right(8) ^ x >> 7
 }
-fn sigma_small_1(x: u32) -> u32 {
-    x.rotate_right(17) ^ x.rotate_right(19) ^ x >> 10
+fn sigma_small_1(x: u64) -> u64 {
+    x.rotate_right(19) ^ x.rotate_right(61) ^ x >> 6
 }
 
-pub fn sha256(data: &[u8]) -> [u8; 32] {
+pub fn sha512(data: &[u8]) -> [u8; 64] {
     let mut hasher = Hasher::new();
     hasher.update(data);
     hasher.finalize().digest()
 }
 
-pub fn sha256_hex(data: &[u8]) -> String {
+pub fn sha512_hex(data: &[u8]) -> String {
     let mut hasher = Hasher::new();
     hasher.update(data);
     hasher.finalize().hex_digest()
 }
 
 pub struct Hasher<State = Working> {
-    pub(crate) state: [u32; 8],
+    pub(crate) state: [u64; 8],
     overflow: Vec<u8>,
     byte_count: usize,
     s: std::marker::PhantomData<State>,
@@ -62,12 +75,18 @@ impl Default for Hasher<Working> {
 impl Hasher<Working> {
     pub fn new() -> Self {
         Self::new_internal([
-            0x6a09e667, 0xbb67ae85, 0x3c6ef372, 0xa54ff53a, 0x510e527f, 0x9b05688c, 0x1f83d9ab,
-            0x5be0cd19,
+            0x6a09e667f3bcc908,
+            0xbb67ae8584caa73b,
+            0x3c6ef372fe94f82b,
+            0xa54ff53a5f1d36f1,
+            0x510e527fade682d1,
+            0x9b05688c2b3e6c1f,
+            0x1f83d9abfb41bd6b,
+            0x5be0cd19137e2179,
         ])
     }
 
-    pub(crate) fn new_internal(state: [u32; 8]) -> Self {
+    pub(crate) fn new_internal(state: [u64; 8]) -> Self {
         Self {
             state,
             overflow: vec![],
@@ -77,14 +96,14 @@ impl Hasher<Working> {
     }
 
     pub fn update(&mut self, input: &[u8]) {
-        for s in input.chunks(64) {
-            if s.len() == 64 {
+        for s in input.chunks(128) {
+            if s.len() == 128 {
                 self.inner_hash_round(s);
             } else {
                 // reached last block that is not a full 64 bytes (512 bits)
                 self.overflow.extend_from_slice(s);
-                if self.overflow.len() >= 64 {
-                    let overflow_vec: Vec<u8> = self.overflow.drain(..64).collect();
+                if self.overflow.len() >= 128 {
+                    let overflow_vec: Vec<u8> = self.overflow.drain(..128).collect();
                     self.inner_hash_round(&overflow_vec);
                 }
                 break;
@@ -92,25 +111,33 @@ impl Hasher<Working> {
         }
     }
 
-    // s has to be of length 64
     fn inner_hash_round(&mut self, s: &[u8]) {
-        assert_eq!(s.len(), 64);
+        assert_eq!(s.len(), 128);
 
         // Parsing the Message
         // https://nvlpubs.nist.gov/nistpubs/FIPS/NIST.FIPS.180-4.pdf
-        // Section 5.2.1
-        let mut w = [0u32; 64];
+        // Section 5.2.2
+        let mut w = [0u64; 80];
         for (i, w_i) in w.iter_mut().enumerate().take(16) {
-            let b = 4 * i;
-            *w_i = u32::from_be_bytes([s[b], s[b + 1], s[b + 2], s[b + 3]]);
+            let b = 8 * i;
+            *w_i = u64::from_be_bytes([
+                s[b],
+                s[b + 1],
+                s[b + 2],
+                s[b + 3],
+                s[b + 4],
+                s[b + 5],
+                s[b + 6],
+                s[b + 7],
+            ]);
         }
 
         // SHA-256 Hash Computation
         // https://nvlpubs.nist.gov/nistpubs/FIPS/NIST.FIPS.180-4.pdf
-        // Section 6.2.2
+        // Section 6.4.2
 
         // Step 1: Prepare the message schedule
-        for i in 16..64 {
+        for i in 16..80 {
             w[i] = sigma_small_1(w[i - 2])
                 .wrapping_add(w[i - 7])
                 .wrapping_add(sigma_small_0(w[i - 15]))
@@ -150,17 +177,17 @@ impl Hasher<Working> {
             h.wrapping_add(self.state[7]),
         ];
 
-        self.byte_count += 64;
+        self.byte_count += 128;
     }
 
     pub fn finalize(mut self) -> Hasher<Finalized> {
         // Padding
         // https://nvlpubs.nist.gov/nistpubs/FIPS/NIST.FIPS.180-4.pdf
-        // Section 5.1.1
-        let total_length_bits = (self.byte_count + self.overflow.len()) * 8;
+        // Section 5.1.2
+        let total_length_bits = ((self.byte_count + self.overflow.len()) * 8) as u128;
 
         self.overflow.push(0x80);
-        while self.overflow.len() % 64 != 56 {
+        while self.overflow.len() % 128 != 112 {
             self.overflow.push(0);
         }
 
@@ -168,10 +195,10 @@ impl Hasher<Working> {
             self.overflow.push(b);
         }
 
-        assert_eq!(self.overflow.len() % 64, 0);
+        assert_eq!(self.overflow.len() % 128, 0);
 
         while !self.overflow.is_empty() {
-            let s: Vec<u8> = self.overflow.drain(0..64).collect();
+            let s: Vec<u8> = self.overflow.drain(0..128).collect();
             self.inner_hash_round(&s);
         }
 
@@ -185,14 +212,14 @@ impl Hasher<Working> {
 }
 
 impl Hasher<Finalized> {
-    pub fn digest(&self) -> [u8; 32] {
+    pub fn digest(&self) -> [u8; 64] {
         let tmp: Vec<u8> = self
             .state
             .into_iter()
             .flat_map(|a| a.to_be_bytes())
             .collect();
 
-        let res: [u8; 32] = tmp.try_into().expect("Infallible");
+        let res: [u8; 64] = tmp.try_into().expect("Infallible");
         res
     }
 
@@ -200,7 +227,7 @@ impl Hasher<Finalized> {
         let mut res = String::new();
 
         for s in self.state {
-            res.push_str(&format!("{s:08x}"));
+            res.push_str(&format!("{s:016x}"));
         }
 
         res
@@ -214,8 +241,8 @@ mod tests {
     #[test]
     fn case1() {
         let input = "test".as_bytes();
-        let hash = sha256_hex(input);
-        let correct_hash = "9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08";
+        let hash = sha512_hex(input);
+        let correct_hash = "ee26b0dd4af7e749aa1a8ee3c10ae9923f618980772e473f8819a5d4940e0db27ac185f8a0e1d5f84f88bc887fd67b143732c304cc5fa9ad8e6f57f50028a8ff";
 
         assert_eq!(correct_hash, hash);
     }
@@ -223,8 +250,8 @@ mod tests {
     #[test]
     fn case2() {
         let input = "testtest".as_bytes();
-        let hash = sha256_hex(input);
-        let correct_hash = "37268335dd6931045bdcdf92623ff819a64244b53d0e746d438797349d4da578";
+        let hash = sha512_hex(input);
+        let correct_hash = "125d6d03b32c84d492747f79cf0bf6e179d287f341384eb5d6d3197525ad6be8e6df0116032935698f99a09e265073d1d6c32c274591bf1d0a20ad67cba921bc";
 
         assert_eq!(correct_hash, hash);
     }
@@ -232,16 +259,14 @@ mod tests {
     #[test]
     fn case3() {
         let mut hasher = Hasher::new();
-        for s in [
-            "very very very very very very very very very very very very ",
-            "very very very very very very very very very very very very ",
-            "very very very very very very very very long test",
-        ] {
-            hasher.update(s.as_bytes());
+        let s = "opiuasdvf89pbuv4wpb98uvaw4p9buaw4vp9ubawvp49".as_bytes();
+
+        for _ in 0..10 {
+            hasher.update(s);
         }
 
         let hash = hasher.finalize().hex_digest();
-        let correct_hash = "0267cd70ce42810aff67379951a9111d735c40f63eede5683413ba93b9086021";
+        let correct_hash = "3d2d5828e6d56badb4e4b330812ca1dc30589f0c7ea60a11a485cfbe49017130259c6ed1bbb563a65c2a530287a4915378b670c27fb421e75e151cd681179579";
 
         assert_eq!(correct_hash, hash);
     }
@@ -261,7 +286,7 @@ mod tests {
         }
 
         let hash = hasher.finalize().hex_digest();
-        let correct_hash = "e2b9313343efd7af075f3cc0ec2d1c24b8e7df165edad2ad53484505bb04da28";
+        let correct_hash = "90112f65f6641bf9d804c862384847c48cfe3d2f5ae49d384fe84ef0db23827c5d715e66bd62dd0d35909f64b83a06368b6018be2cc52cd56870dfa736df65de";
 
         assert_eq!(correct_hash, hash);
     }

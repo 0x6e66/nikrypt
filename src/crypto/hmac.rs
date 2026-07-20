@@ -43,13 +43,13 @@ macro_rules! impl_hmac {
 
 #[rustfmt::skip]
 mod unformatted {
-    impl_hmac!(hmac_sha224, crate::hash::sha2::sha_224::Hasher, digest, 64, [u8; 28]);
-    impl_hmac!(hmac_sha256, crate::hash::sha2::sha_256::Hasher, digest, 64, [u8; 32]);
-    impl_hmac!(hmac_sha512, crate::hash::sha2::sha_512::Hasher, digest, 128, [u8; 64]);
+    impl_hmac!(hmac_sha224, crate::crypto::sha2::sha_224::Hasher, digest, 64, [u8; 28]);
+    impl_hmac!(hmac_sha256, crate::crypto::sha2::sha_256::Hasher, digest, 64, [u8; 32]);
+    impl_hmac!(hmac_sha512, crate::crypto::sha2::sha_512::Hasher, digest, 128, [u8; 64]);
 
-    impl_hmac!(hmac_sha224_hex, crate::hash::sha2::sha_224::Hasher, hex_digest, 64, String);
-    impl_hmac!(hmac_sha256_hex, crate::hash::sha2::sha_256::Hasher, hex_digest, 64, String);
-    impl_hmac!(hmac_sha512_hex, crate::hash::sha2::sha_512::Hasher, hex_digest, 128, String);
+    impl_hmac!(hmac_sha224_hex, crate::crypto::sha2::sha_224::Hasher, hex_digest, 64, String);
+    impl_hmac!(hmac_sha256_hex, crate::crypto::sha2::sha_256::Hasher, hex_digest, 64, String);
+    impl_hmac!(hmac_sha512_hex, crate::crypto::sha2::sha_512::Hasher, hex_digest, 128, String);
 }
 pub use unformatted::*;
 
