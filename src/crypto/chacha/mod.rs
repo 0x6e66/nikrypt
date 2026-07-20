@@ -44,7 +44,7 @@ pub fn chacha20_encrypt(
         });
     }
 
-    if (plaintext.len() % 64) != 0 {
+    if !plaintext.len().is_multiple_of(64) {
         let j = plaintext.len() / 64;
         let key_stream = chacha20_block(key, nonce, counter + j as u32);
         let block = &plaintext[(j * 64)..plaintext.len()];

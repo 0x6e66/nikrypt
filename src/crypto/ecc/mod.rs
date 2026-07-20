@@ -4,7 +4,7 @@ use crate::math::bignum::Bignum;
 
 #[derive(Debug, PartialEq, Clone)]
 struct EccNum(Bignum);
-
+#[allow(dead_code)]
 impl EccNum {
     fn zero() -> Self {
         Self(Bignum::zero())

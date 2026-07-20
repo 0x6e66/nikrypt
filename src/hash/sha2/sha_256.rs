@@ -100,9 +100,9 @@ impl Hasher<Working> {
         // https://nvlpubs.nist.gov/nistpubs/FIPS/NIST.FIPS.180-4.pdf
         // Section 5.2.1
         let mut w = [0u32; 64];
-        for i in 0..16 {
+        for (i, w_i) in w.iter_mut().enumerate().take(16) {
             let b = 4 * i;
-            w[i] = u32::from_be_bytes([s[b], s[b + 1], s[b + 2], s[b + 3]]);
+            *w_i = u32::from_be_bytes([s[b], s[b + 1], s[b + 2], s[b + 3]]);
         }
 
         // SHA-256 Hash Computation

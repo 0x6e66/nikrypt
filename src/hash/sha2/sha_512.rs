@@ -118,9 +118,9 @@ impl Hasher<Working> {
         // https://nvlpubs.nist.gov/nistpubs/FIPS/NIST.FIPS.180-4.pdf
         // Section 5.2.2
         let mut w = [0u64; 80];
-        for i in 0..16 {
+        for (i, w_i) in w.iter_mut().enumerate().take(16) {
             let b = 8 * i;
-            w[i] = u64::from_be_bytes([
+            *w_i = u64::from_be_bytes([
                 s[b],
                 s[b + 1],
                 s[b + 2],

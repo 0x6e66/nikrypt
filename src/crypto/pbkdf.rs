@@ -1,4 +1,4 @@
-use crate::{crypto::hmac::hmac_sha256, prelude::W};
+use crate::prelude::W;
 
 // https://www.rfc-editor.org/info/rfc8018/#section-5.2
 fn pbkdf2<const N: usize>(

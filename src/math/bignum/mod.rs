@@ -100,7 +100,7 @@ impl Bignum {
     }
 
     pub fn is_even(&self) -> bool {
-        self.digits[0] % 2 == 0
+        self.digits[0].is_multiple_of(2)
     }
 
     pub fn to_hex_string(&self) -> String {
@@ -146,7 +146,7 @@ impl Bignum {
             vec.push(b);
         }
 
-        if len % 16 != 0 {
+        if !len.is_multiple_of(16) {
             let b = &s[0..len % 16];
             let b = u64::from_str_radix(b, 16)?;
             vec.push(b);
