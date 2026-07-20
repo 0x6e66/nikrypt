@@ -1,6 +1,9 @@
 use crate::hash::sha2::{sha_256, Finalized, Working};
 
-pub fn sha224(data: &[u8]) -> [u8; 28] {
+const DIGEST_SIZE: usize = 28;
+const TRUNC_SIZE: usize = DIGEST_SIZE / 4;
+
+pub fn sha224(data: &[u8]) -> [u8; DIGEST_SIZE] {
     let mut hasher = Hasher::new();
     hasher.update(data);
     hasher.finalize().digest()
@@ -51,20 +54,20 @@ impl Hasher<Working> {
 }
 
 impl Hasher<Finalized> {
-    pub fn digest(&self) -> [u8; 28] {
-        let tmp: Vec<u8> = self.inner_hasher.state[..7]
+    pub fn digest(&self) -> [u8; DIGEST_SIZE] {
+        let tmp: Vec<u8> = self.inner_hasher.state[..TRUNC_SIZE]
             .iter()
             .flat_map(|a| a.to_be_bytes())
             .collect();
 
-        let res: [u8; 28] = tmp.try_into().expect("Infallible");
+        let res: [u8; DIGEST_SIZE] = tmp.try_into().expect("Infallible");
         res
     }
 
     pub fn hex_digest(&self) -> String {
         let mut res = String::new();
 
-        for s in self.inner_hasher.state[..7].iter() {
+        for s in self.inner_hasher.state[..TRUNC_SIZE].iter() {
             res.push_str(&format!("{s:08x}"));
         }
 
