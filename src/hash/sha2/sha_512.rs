@@ -270,4 +270,24 @@ mod tests {
 
         assert_eq!(correct_hash, hash);
     }
+
+    #[test]
+    fn case4() {
+        let mut hasher = Hasher::new();
+
+        let base_bytes = [
+            0x33, 0xc3, 0x95, 0xc3, 0xa5, 0xc2, 0xb2, 0xc3, 0xb3, 0x01, 0x7d, 0xc2, 0x91, 0xc3,
+            0xb2, 0xc4, 0x80, 0xc3, 0xa5, 0x73, 0xc2, 0x99, 0x41, 0xc2, 0xa0, 0x23, 0xc3, 0xb5,
+            0x5d, 0x27, 0xc2, 0xa1, 0xd1, 0x94, 0xb2, 0x2f, 0xfd, 0xe2, 0x41, 0x08, 0x85, 0xdb,
+        ];
+
+        for _ in 0..1_000 {
+            hasher.update(&base_bytes);
+        }
+
+        let hash = hasher.finalize().hex_digest();
+        let correct_hash = "90112f65f6641bf9d804c862384847c48cfe3d2f5ae49d384fe84ef0db23827c5d715e66bd62dd0d35909f64b83a06368b6018be2cc52cd56870dfa736df65de";
+
+        assert_eq!(correct_hash, hash);
+    }
 }
