@@ -1,6 +1,4 @@
-use super::utils;
-
-#[derive(PartialEq, Debug, Clone, Copy)]
+#[derive(PartialEq, Debug, Clone)]
 struct State {
     data: [u32; 16],
 }
@@ -8,7 +6,10 @@ struct State {
 impl State {
     pub fn new(key: [u8; 32], nonce: [u8; 12], counter: u32) -> Self {
         let mut data = [0u32; 16];
-        (data[0], data[1], data[2], data[3]) = (0x61707865, 0x3320646e, 0x79622d32, 0x6b206574);
+        data[0] = 0x61707865;
+        data[1] = 0x3320646e;
+        data[2] = 0x79622d32;
+        data[3] = 0x6b206574;
 
         for (i, key_seg) in key.chunks(4).enumerate() {
             data[i + 4] = (key_seg[3] as u32).rotate_left(24)
@@ -29,10 +30,25 @@ impl State {
         State { data }
     }
 
-    /// RFC 7539 - Section 2.2 - A Quarter Round on the ChaCha State
+    /// RFC 8439 - Section 2.2 - A Quarter Round on the ChaCha State
     pub fn quarter_round(&mut self, x: usize, y: usize, z: usize, w: usize) {
-        (self.data[x], self.data[y], self.data[z], self.data[w]) =
-            utils::quarter_round_on_vector(self.data[x], self.data[y], self.data[z], self.data[w]);
+        let [a, b, c, d] = unsafe { self.data.get_disjoint_unchecked_mut([x, y, z, w]) };
+
+        *a = a.wrapping_add(*b);
+        *d ^= *a;
+        *d = d.rotate_left(16);
+
+        *c = c.wrapping_add(*d);
+        *b ^= *c;
+        *b = b.rotate_left(12);
+
+        *a = a.wrapping_add(*b);
+        *d ^= *a;
+        *d = d.rotate_left(8);
+
+        *c = c.wrapping_add(*d);
+        *b ^= *c;
+        *b = b.rotate_left(7);
     }
 
     fn eight_quarter_rounds(&mut self) {
@@ -50,49 +66,32 @@ impl State {
         let mut result = [0u8; 64];
 
         for (i, word) in self.data.iter().enumerate() {
-            result[4 * i] = (word & 0xff) as u8;
-            result[4 * i + 1] = ((word >> 8) & 0xff) as u8;
-            result[4 * i + 2] = ((word >> 16) & 0xff) as u8;
-            result[4 * i + 3] = ((word >> 24) & 0xff) as u8;
+            let b = 4 * i;
+            let bytes = word.to_le_bytes();
+
+            result[b] = bytes[0];
+            result[b + 1] = bytes[1];
+            result[b + 2] = bytes[2];
+            result[b + 3] = bytes[3];
         }
 
         result
     }
 }
 
-impl std::ops::AddAssign for State {
-    fn add_assign(&mut self, rhs: Self) {
-        self.data.iter_mut().enumerate().for_each(|(i, e)| {
-            *e = e.wrapping_add(rhs.data[i]);
-        });
-    }
-}
-
-/// RFC 7539 - Section 2.3 - The ChaCha20 Block Function
-///
-/// Pseudocode:
-/// ```pseudocode
-/// chacha20_block(key, counter, nonce):
-///     state = constants | key | counter | nonce
-///     working_state = state
-///     for i=1 upto 10
-///        inner_block(working_state)
-///     end
-///     state += working_state
-///     return serialize(state)
-/// end
-/// ```
+/// RFC 8439 - Section 2.3 - The ChaCha20 Block Function
 pub fn chacha20_block(key: [u8; 32], nonce: [u8; 12], counter: u32) -> [u8; 64] {
-    #[rustfmt::skip]
     let mut state = State::new(key, nonce, counter);
 
-    let mut working_state = state;
+    let mut working_state = state.clone();
 
-    (0..10).for_each(|_| {
+    for _ in 0..10 {
         working_state.eight_quarter_rounds();
-    });
+    }
 
-    state += working_state;
+    for (s, w) in state.data.iter_mut().zip(working_state.data) {
+        *s = s.wrapping_add(w);
+    }
 
     state.serialize()
 }
@@ -130,7 +129,7 @@ mod test {
 
     #[test]
     #[rustfmt::skip]
-    /// RFC 7539 - Section 2.2.1 - Test Vector for the Quarter Round on the ChaCha State
+    /// RFC 8439 - Section 2.2.1 - Test Vector for the Quarter Round on the ChaCha State
     fn test_quarter_round() {
 
         let mut state = State {
@@ -157,7 +156,7 @@ mod test {
     }
 
     #[test]
-    /// RFC 7539 - Section 2.3.2 - Test Vector for the ChaCha20 Block Function
+    /// RFC 8439 - Section 2.3.2 - Test Vector for the ChaCha20 Block Function
     fn test_chacha20_block() {
         let key: [u8; 32] = [
             0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d,

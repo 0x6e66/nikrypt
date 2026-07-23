@@ -1,11 +1,10 @@
-mod state;
-mod utils;
+//! Implementation of ChaCha20 (RFC 8439)
 
-use std::vec;
+mod state;
 
 use self::state::chacha20_block;
 
-/// RFC 7539 - Section 2.4.1 - The ChaCha20 Encryption Algorithm
+/// RFC 8439 - Section 2.4.1 - The ChaCha20 Encryption Algorithm
 ///
 /// Pseudocode:
 /// ```pseudocode
@@ -24,15 +23,13 @@ use self::state::chacha20_block;
 ///     return encrypted_message
 /// end
 /// ```
-pub fn chacha20_encrypt(
-    key: [u8; 32],
-    nonce: [u8; 12],
-    counter: u32,
-    plaintext: Vec<u8>,
-) -> Vec<u8> {
+pub fn chacha20_encrypt(key: [u8; 32], nonce: [u8; 12], counter: u32, plaintext: &[u8]) -> Vec<u8> {
     let mut ciphertext: Vec<u8> = vec![];
 
-    for j in 0..plaintext.len() / 64 {
+    let num_blocks = plaintext.len() / 64;
+    let plaintext_len = plaintext.len();
+
+    for j in 0..num_blocks {
         let key_stream = chacha20_block(key, nonce, counter + j as u32);
         let block = &plaintext[(j * 64)..(j * 64 + 64)];
 
@@ -44,12 +41,11 @@ pub fn chacha20_encrypt(
         });
     }
 
-    if !plaintext.len().is_multiple_of(64) {
-        let j = plaintext.len() / 64;
-        let key_stream = chacha20_block(key, nonce, counter + j as u32);
-        let block = &plaintext[(j * 64)..plaintext.len()];
+    if !plaintext_len.is_multiple_of(64) {
+        let key_stream = chacha20_block(key, nonce, counter + num_blocks as u32);
+        let block = &plaintext[(num_blocks * 64)..plaintext_len];
 
-        (0..plaintext.len() % 64).for_each(|i| {
+        (0..plaintext_len % 64).for_each(|i| {
             ciphertext.push(block[i] ^ key_stream[i]);
         });
     }
@@ -57,12 +53,12 @@ pub fn chacha20_encrypt(
     ciphertext
 }
 
-/// RFC 7539 - Section 2.4.1 - The ChaCha20 Encryption Algorithm (reversed)
+/// RFC 8439 - Section 2.4.1 - The ChaCha20 Encryption Algorithm (reversed)
 pub fn chacha20_decrypt(
     key: [u8; 32],
     nonce: [u8; 12],
     counter: u32,
-    ciphertext: Vec<u8>,
+    ciphertext: &[u8],
 ) -> Vec<u8> {
     chacha20_encrypt(key, nonce, counter, ciphertext)
 }
@@ -83,7 +79,7 @@ mod test {
         ];
         let counter: u32 = 1;
 
-        let plaintext = "Ladies and Gentlemen of the class of '99: If I could offer you only one tip for the future, sunscreen would be it.".as_bytes().to_vec();
+        let plaintext = "Ladies and Gentlemen of the class of '99: If I could offer you only one tip for the future, sunscreen would be it.".as_bytes();
 
         let ciphertext = chacha20_encrypt(key, nonce, counter, plaintext);
 
@@ -125,7 +121,7 @@ mod test {
         ];
         let counter: u32 = 1;
 
-        let plaintext = chacha20_decrypt(key, nonce, counter, ciphertext);
+        let plaintext = chacha20_decrypt(key, nonce, counter, &ciphertext);
 
         let valid_plaintext = "Ladies and Gentlemen of the class of '99: If I could offer you only one tip for the future, sunscreen would be it.".as_bytes().to_vec();
 
