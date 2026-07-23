@@ -1,7 +1,7 @@
 use crate::math::bignum::Bignum;
 
 impl Bignum {
-    /// Exponentiation by squaring (https://en.wikipedia.org/wiki/Exponentiation_by_squaring)
+    /// Exponentiation by squaring (<https://en.wikipedia.org/wiki/Exponentiation_by_squaring>)
     pub fn pow(self, other: Self) -> Self {
         let mut x = self;
         let mut n = other;

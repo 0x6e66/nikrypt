@@ -25,7 +25,7 @@ impl Bignum {
         (quotient, remainder)
     }
 
-    /// Integer division (unsigned) with remainder (https://en.wikipedia.org/wiki/Division_algorithm#Integer_division_(unsigned)_with_remainder)
+    /// Integer division (unsigned) with remainder (<https://en.wikipedia.org/wiki/Division_algorithm#Integer_division_(unsigned)_with_remainder>)
     /// returns (quotient, remainder)
     pub fn div_with_remainder(&self, rhs: &Self) -> (Self, Self) {
         if rhs.is_zero() {
